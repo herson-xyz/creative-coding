@@ -16,6 +16,7 @@ const uniforms = {
   rez: 512,
   time: 0,
   count: 1000,
+  mode: 0, // 0 = drift, 1 = avoidance
 };
 
 // CPU-only settings
@@ -81,11 +82,18 @@ async function main() {
   });
   gpu.queue.writeBuffer(countBuffer, 0, new Uint32Array([uniforms.count]));
 
+  const modeBuffer = gpu.createBuffer({
+    size: sizes.u32,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+  });
+  gpu.queue.writeBuffer(modeBuffer, 0, new Uint32Array([uniforms.mode]));
+
   const uniformsLayout = gpu.createBindGroupLayout({
     entries: [
       { visibility, binding: 0, buffer: { type: "uniform" } },
       { visibility, binding: 1, buffer: { type: "uniform" } },
       { visibility, binding: 2, buffer: { type: "uniform" } },
+      { visibility, binding: 3, buffer: { type: "uniform" } },
     ],
   });
   const uniformsBuffersBindGroup = gpu.createBindGroup({
@@ -94,6 +102,7 @@ async function main() {
       { binding: 0, resource: { buffer: rezBuffer } },
       { binding: 1, resource: { buffer: timeBuffer } },
       { binding: 2, resource: { buffer: countBuffer } },
+      { binding: 3, resource: { buffer: modeBuffer } },
     ],
   });
 
@@ -145,6 +154,17 @@ async function main() {
   const fadePipeline = gpu.createComputePipeline({
     layout,
     compute: { module, entryPoint: "fade" },
+  });
+
+  /////////////////////////
+  // UI controls
+  const modeBtn = document.getElementById("mode-toggle");
+  const labels = ["Drift", "Avoidance"];
+  modeBtn.addEventListener("click", () => {
+    uniforms.mode = uniforms.mode === 0 ? 1 : 0;
+    modeBtn.textContent = labels[uniforms.mode];
+    modeBtn.dataset.active = uniforms.mode;
+    gpu.queue.writeBuffer(modeBuffer, 0, new Uint32Array([uniforms.mode]));
   });
 
   /////////////////////////

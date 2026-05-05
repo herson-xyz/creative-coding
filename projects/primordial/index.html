@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Primordial</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #1e1e1e;
+      --border-hover: #333;
+      --text: #d4d4d4;
+      --muted: #555;
+      --accent: #c8f;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      padding: 3rem 2rem;
+    }
+
+    header {
+      max-width: 960px;
+      margin: 0 auto 3rem;
+      display: flex;
+      align-items: baseline;
+      gap: 1.5rem;
+    }
+
+    .back {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+    }
+
+    .back:hover { color: var(--accent); }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+    }
+
+    .meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .card {
+      background: var(--bg);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .card:hover { background: var(--surface); }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .iteration-num {
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .card-desc {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .card-date {
+      font-size: 0.65rem;
+      color: var(--border-hover);
+    }
+
+    .arrow {
+      position: absolute;
+      bottom: 1.25rem;
+      right: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--border-hover);
+      transition: color 0.15s, transform 0.15s;
+    }
+
+    .card:hover .arrow {
+      color: var(--accent);
+      transform: translate(2px, -2px);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../">← back</a>
+    <h1 id="project-title"></h1>
+    <span class="meta" id="count"></span>
+  </header>
+
+  <main id="main"></main>
+
+  <script>
+    async function render() {
+      const res = await fetch('./iterations.json');
+      const { project, iterations } = await res.json();
+
+      document.title = project;
+      document.getElementById('project-title').textContent = project.toLowerCase();
+      document.getElementById('count').textContent =
+        `${iterations.length} iteration${iterations.length !== 1 ? 's' : ''}`;
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+
+      for (const it of iterations) {
+        const a = document.createElement('a');
+        a.className = 'card';
+        a.href = `./iterations/${it.slug}/`;
+        a.innerHTML = `
+          <div class="card-top">
+            <span class="iteration-num">iteration ${String(it.number).padStart(2, '0')}</span>
+          </div>
+          <div class="card-title">${it.title}</div>
+          ${it.description ? `<div class="card-desc">${it.description}</div>` : ''}
+          <div class="card-date">${it.date}</div>
+          <span class="arrow">↗</span>
+        `;
+        grid.appendChild(a);
+      }
+
+      document.getElementById('main').appendChild(grid);
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 {
   "projects": [
     {
-      "slug": "2026-W19-agents-gpu",
-      "title": "Agents GPU",
+      "slug": "primordial",
+      "title": "Primordial",
       "week": "2026-W19",
       "date": "2026-05-04",
       "type": "webgpu",
-      "description": ""
+      "description": "A particle system built on direct coordination. Simple local rules, no global state, emergent complexity."
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "project": "Primordial",
+  "iterations": [
+    {
+      "slug": "02-avoidance",
+      "title": "Avoidance",
+      "number": 2,
+      "date": "2026-05-05",
+      "description": "Agents steer away from neighbors within a local radius, producing emergent spacing and flow without any global coordination."
+    },
+    {
+      "slug": "01-stochastic-drift",
+      "title": "Stochastic Drift",
+      "number": 1,
+      "date": "2026-05-04",
+      "description": "A per-agent random perturbation applied to velocity each frame. Agents individuate through noise, not interaction."
+    }
+  ]
+}

@@ -12,6 +12,9 @@
 @group(1) @binding(2)
   var<uniform> count : u32;
 
+@group(1) @binding(3)
+  var<uniform> mode : u32; // 0 = drift, 1 = avoidance
+
 // Other buffers
 @group(2) @binding(0)  
   var<storage, read_write> positions : array<vec2f>;
@@ -49,10 +52,23 @@ fn simulate(@builtin(global_invocation_id) id : vec3u) {
   positions[id.x] = p;
 
   // Update velocity
-  var randomV : vec2f;
-  randomV.x = r(f32(id.x) + time/100) - 0.5;
-  randomV.y = r(f32(id.x) + time/10) - 0.5;
-  v += 0.2 * randomV;
+  if (mode == 0u) {
+    var randomV : vec2f;
+    randomV.x = r(f32(id.x) + time/100) - 0.5;
+    randomV.y = r(f32(id.x) + time/10) - 0.5;
+    v += 0.2 * randomV;
+  } else {
+    var avoidV = vec2(0.0);
+    for (var i = 0u; i < count; i++) {
+      if (i == id.x) { continue; }
+      var other = positions[i];
+      var d = distance(other, p);
+      if (d < 10) {
+        avoidV += p - other;
+      }
+    }
+    v += 0.08 * avoidV;
+  }
   v = normalize(v);
   velocities[id.x] = v;
 
