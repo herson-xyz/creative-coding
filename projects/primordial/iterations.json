@@ -6,14 +6,22 @@
       "title": "Avoidance",
       "number": 2,
       "date": "2026-05-05",
-      "description": "Agents steer away from neighbors within a local radius, producing emergent spacing and flow without any global coordination."
+      "description": "Agents steer away from neighbors within a local radius, producing emergent spacing and flow without any global coordination.",
+      "artifacts": [
+        {
+          "slug": "interactive",
+          "title": "Interactive",
+          "description": "Drag neighbors into the radius and watch the vectors update in real time."
+        }
+      ]
     },
     {
       "slug": "01-stochastic-drift",
       "title": "Stochastic Drift",
       "number": 1,
       "date": "2026-05-04",
-      "description": "A per-agent random perturbation applied to velocity each frame. Agents individuate through noise, not interaction."
+      "description": "A per-agent random perturbation applied to velocity each frame. Agents individuate through noise, not interaction.",
+      "artifacts": []
     }
   ]
 }

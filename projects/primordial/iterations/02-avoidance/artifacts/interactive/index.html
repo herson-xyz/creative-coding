@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Avoidance — Interactive</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #1e1e1e;
+      --text: #d4d4d4;
+      --muted: #555;
+      --accent: #c8f;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      gap: 1.25rem;
+    }
+    header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: baseline;
+      gap: 1.25rem;
+    }
+    .back {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .back:hover { color: var(--accent); }
+    h1 {
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+    }
+    .sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    canvas { display: block; border: 1px solid var(--border); }
+    footer {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../../../">← back</a>
+    <h1>avoidance — interactive</h1>
+    <span class="sub">iteration 03</span>
+  </header>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script>
+    const RADIUS = 120;
+
+    const BG      = [8,   8,   8  ];
+    const FOCAL   = [204, 136, 255];
+    const IN_R    = [68,  255, 68 ];
+    const OUT_R   = [50,  50,  50 ];
+    const REPULSE = [255, 153, 102];
+    const AVOID_C = [255, 221, 68 ];
+    const VEL     = [68,  170, 255];
+    const MUTED   = [80,  80,  80 ];
+
+    let focalPos;
+    let neighbors = [];
+    let dragging  = -1;
+    let dragOff;
+
+    function setup() {
+      createCanvas(600, 600);
+      textFont('monospace');
+      focalPos = createVector(width / 2, height / 2);
+      neighbors = [
+        createVector(focalPos.x - 80,  focalPos.y + 45 ),
+        createVector(focalPos.x + 75,  focalPos.y - 55 ),
+        createVector(focalPos.x + 30,  focalPos.y + 105),
+        createVector(focalPos.x - 215, focalPos.y - 90 ),
+        createVector(focalPos.x + 230, focalPos.y + 115),
+      ];
+    }
+
+    function draw() {
+      background(...BG);
+
+      // ── avoidance computation ──────────────────────────────
+      let avoidV = createVector(0, 0);
+      let inside = [];
+
+      for (let i = 0; i < neighbors.length; i++) {
+        let d = p5.Vector.dist(focalPos, neighbors[i]);
+        if (d < RADIUS && d > 1) {
+          avoidV.add(p5.Vector.sub(focalPos, neighbors[i]));
+          inside.push(i);
+        }
+      }
+
+      let initV  = createVector(1, 0);
+      let finalV = p5.Vector.add(initV, p5.Vector.mult(avoidV, 0.08)).normalize();
+
+      // ── radius ring ────────────────────────────────────────
+      noFill();
+      stroke(...FOCAL, 45);
+      strokeWeight(1.5);
+      circle(focalPos.x, focalPos.y, RADIUS * 2);
+
+      // ── neighbor dots ──────────────────────────────────────
+      for (let i = 0; i < neighbors.length; i++) {
+        let col = inside.includes(i) ? IN_R : OUT_R;
+        fill(...col);
+        noStroke();
+        circle(neighbors[i].x, neighbors[i].y, 14);
+        if (dragging === i) {
+          noFill();
+          stroke(...col, 90);
+          strokeWeight(1);
+          circle(neighbors[i].x, neighbors[i].y, 26);
+        }
+      }
+
+      // ── repulsion vectors  p − other ──────────────────────
+      for (let i of inside) {
+        let dir = p5.Vector.sub(focalPos, neighbors[i]).normalize();
+        let end = p5.Vector.add(focalPos, p5.Vector.mult(dir, 65));
+        drawArrow(focalPos, end, [...REPULSE, 200], 1.8, null);
+      }
+
+      // ── avoidV resultant ───────────────────────────────────
+      if (inside.length > 0) {
+        let avoidEnd = p5.Vector.add(focalPos, avoidV.copy().normalize().mult(88));
+        drawArrow(focalPos, avoidEnd, [...AVOID_C, 230], 3, 'avoidV');
+      }
+
+      // ── initial velocity (dim) ─────────────────────────────
+      let initEnd = p5.Vector.add(focalPos, p5.Vector.mult(initV, 68));
+      drawArrow(focalPos, initEnd, [...VEL, 50], 1.5, 'v₀');
+
+      // ── final velocity ─────────────────────────────────────
+      let finalEnd = p5.Vector.add(focalPos, p5.Vector.mult(finalV, 82));
+      drawArrow(focalPos, finalEnd, [...VEL, 230], 3.5, 'v');
+
+      // ── focal agent ────────────────────────────────────────
+      fill(...FOCAL);
+      noStroke();
+      circle(focalPos.x, focalPos.y, 20);
+      fill(...FOCAL, 150);
+      noStroke();
+      textSize(11);
+      text('id.x', focalPos.x + 13, focalPos.y - 10);
+
+      drawLegend();
+      drawCode(inside, avoidV);
+    }
+
+    function drawArrow(from, to, col, w, label) {
+      let [r, g, b, a] = col.length === 4 ? col : [...col, 255];
+      stroke(r, g, b, a);
+      strokeWeight(w);
+      line(from.x, from.y, to.x, to.y);
+
+      let ang = atan2(to.y - from.y, to.x - from.x);
+      let hs  = constrain(w * 3.5, 6, 13);
+      fill(r, g, b, a);
+      noStroke();
+      push();
+      translate(to.x, to.y);
+      rotate(ang);
+      triangle(0, 0, -hs, -hs * 0.38, -hs, hs * 0.38);
+      pop();
+
+      if (label) {
+        fill(r, g, b, min(a + 40, 255));
+        noStroke();
+        textSize(12);
+        let perp = createVector(-(to.y - from.y), to.x - from.x).normalize().mult(14);
+        text(label, to.x + perp.x, to.y + perp.y);
+      }
+    }
+
+    function drawLegend() {
+      let x = 14, y = height - 68;
+      noStroke();
+      textSize(11);
+      fill(...REPULSE, 180); text('—  p − other  (per neighbor)', x, y);
+      fill(...AVOID_C, 180); text('—  avoidV  (sum)', x, y + 17);
+      fill(...VEL, 130);     text('—  v₀  (incoming velocity)', x, y + 34);
+      fill(...VEL, 230);     text('—  v  (after blend + normalize)', x, y + 51);
+      fill(...MUTED);
+      text('drag any dot', width - 102, height - 14);
+    }
+
+    function drawCode(inside, avoidV) {
+      let x = 14, y = 22;
+      noStroke();
+      textSize(11);
+
+      let on  = [220, 220, 220, 220];
+      let off = [70,  70,  70,  180];
+      let has = inside.length > 0;
+
+      let lines = [
+        { t: 'var avoidV = vec2(0.0);',               a: true },
+        { t: 'for (var i = 0u; i < count; i++) {',    a: true },
+        { t: '  if (d < 10) { avoidV += p−other; }',  a: has  },
+        { t: '}',                                      a: true },
+        { t: 'v += 0.08 * avoidV;',                   a: has  },
+        { t: 'v = normalize(v);',                      a: true },
+      ];
+
+      for (let i = 0; i < lines.length; i++) {
+        let [r, g, b, a] = lines[i].a ? on : off;
+        fill(r, g, b, a);
+        text(lines[i].t, x, y + i * 16);
+      }
+
+      if (has) {
+        fill(...AVOID_C, 180);
+        text(
+          `// avoidV = (${round(avoidV.x)}, ${round(avoidV.y)})`,
+          x, y + lines.length * 16 + 6
+        );
+      }
+    }
+
+    function mousePressed() {
+      for (let i = 0; i < neighbors.length; i++) {
+        if (p5.Vector.dist(createVector(mouseX, mouseY), neighbors[i]) < 16) {
+          dragging = i;
+          dragOff  = createVector(neighbors[i].x - mouseX, neighbors[i].y - mouseY);
+          return;
+        }
+      }
+    }
+
+    function mouseDragged() {
+      if (dragging >= 0)
+        neighbors[dragging].set(mouseX + dragOff.x, mouseY + dragOff.y);
+    }
+
+    function mouseReleased() { dragging = -1; }
+  </script>
+
+  <footer>drag neighbors into the radius to see vectors update in real time</footer>
+</body>
+</html>

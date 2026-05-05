@@ -13,6 +13,7 @@
       --text: #d4d4d4;
       --muted: #555;
       --accent: #c8f;
+      --artifact: #a96;
       --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
     }
 
@@ -40,7 +41,6 @@
       text-decoration: none;
       letter-spacing: 0.08em;
     }
-
     .back:hover { color: var(--accent); }
 
     h1 {
@@ -65,8 +65,14 @@
       border: 1px solid var(--border);
     }
 
-    .card {
+    /* ── iteration card ── */
+    .card-wrap {
       background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card {
       padding: 1.25rem;
       display: flex;
       flex-direction: column;
@@ -75,8 +81,8 @@
       color: inherit;
       transition: background 0.15s;
       position: relative;
+      flex: 1;
     }
-
     .card:hover { background: var(--surface); }
 
     .card-top {
@@ -118,9 +124,51 @@
       color: var(--border-hover);
       transition: color 0.15s, transform 0.15s;
     }
-
     .card:hover .arrow {
       color: var(--accent);
+      transform: translate(2px, -2px);
+    }
+
+    /* ── artifacts strip ── */
+    .artifacts {
+      border-top: 1px solid var(--border);
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .artifact-link {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.72rem;
+      transition: color 0.15s;
+    }
+    .artifact-link:hover { color: var(--artifact); }
+
+    .artifact-badge {
+      font-size: 0.55rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.15em 0.45em;
+      border-radius: 2px;
+      background: #1c1610;
+      color: var(--artifact);
+      border: 1px solid #2a2015;
+      flex-shrink: 0;
+    }
+
+    .artifact-arrow {
+      margin-left: auto;
+      font-size: 0.65rem;
+      color: var(--border-hover);
+      transition: color 0.15s, transform 0.15s;
+    }
+    .artifact-link:hover .artifact-arrow {
+      color: var(--artifact);
       transform: translate(2px, -2px);
     }
   </style>
@@ -148,6 +196,9 @@
       grid.className = 'grid';
 
       for (const it of iterations) {
+        const wrap = document.createElement('div');
+        wrap.className = 'card-wrap';
+
         const a = document.createElement('a');
         a.className = 'card';
         a.href = `./iterations/${it.slug}/`;
@@ -160,7 +211,26 @@
           <div class="card-date">${it.date}</div>
           <span class="arrow">↗</span>
         `;
-        grid.appendChild(a);
+        wrap.appendChild(a);
+
+        if (it.artifacts && it.artifacts.length > 0) {
+          const strip = document.createElement('div');
+          strip.className = 'artifacts';
+          for (const artifact of it.artifacts) {
+            const link = document.createElement('a');
+            link.className = 'artifact-link';
+            link.href = `./iterations/${it.slug}/artifacts/${artifact.slug}/`;
+            link.innerHTML = `
+              <span class="artifact-badge">artifact</span>
+              ${artifact.title}
+              <span class="artifact-arrow">↗</span>
+            `;
+            strip.appendChild(link);
+          }
+          wrap.appendChild(strip);
+        }
+
+        grid.appendChild(wrap);
       }
 
       document.getElementById('main').appendChild(grid);
