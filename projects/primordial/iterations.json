@@ -12,6 +12,11 @@
           "slug": "interactive",
           "title": "Interactive",
           "description": "Drag neighbors into the radius and watch the vectors update in real time."
+        },
+        {
+          "slug": "loop-step",
+          "title": "Loop Step",
+          "description": "Step through loop iteration i to see how all GPU threads evaluate the same agent simultaneously."
         }
       ]
     },
