@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Avoidance — Loop Step</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #1e1e1e;
+      --text: #d4d4d4;
+      --muted: #555;
+      --accent: #c8f;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      gap: 1.25rem;
+    }
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      align-items: baseline;
+      gap: 1.25rem;
+    }
+    .back { font-size: 0.75rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--accent); }
+    h1 { font-size: 0.95rem; font-weight: 400; color: var(--accent); letter-spacing: 0.12em; }
+    .sub { font-size: 0.7rem; color: var(--muted); }
+
+    .stage {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 900px;
+    }
+    canvas { display: block; border: 1px solid var(--border); flex-shrink: 0; }
+
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-width: 240px;
+    }
+
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+      font-size: 0.72rem;
+      line-height: 1.8;
+      white-space: pre;
+    }
+    .code-block .dim   { color: #3a3a3a; }
+    .code-block .on    { color: #d4d4d4; }
+    .code-block .kw    { color: #c8f; }
+    .code-block .skip  { color: #f96; }
+    .code-block .hit   { color: #4f4; }
+    .code-block .acc   { color: #fd4; }
+    .code-block .val   { color: #4af; }
+
+    .info-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+      font-size: 0.7rem;
+      line-height: 1.9;
+    }
+    .info-block .label { color: var(--muted); }
+    .info-block .val   { color: var(--text); }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.72rem;
+    }
+    button {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      padding: 0.3rem 0.75rem;
+      background: #161616;
+      color: var(--text);
+      border: 1px solid #2a2a2a;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button:disabled { opacity: 0.3; cursor: default; border-color: #1e1e1e; color: var(--muted); }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 2px;
+      background: #2a2a2a;
+      outline: none;
+      flex: 1;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    footer { font-size: 0.65rem; color: var(--muted); text-align: center; }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.68rem;
+    }
+    .legend-row { display: flex; align-items: center; gap: 0.5rem; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../../../">← back</a>
+    <h1>avoidance — loop step</h1>
+    <span class="sub">artifact 02</span>
+  </header>
+
+  <div class="stage">
+    <canvas id="c" width="520" height="520"></canvas>
+    <div class="panel">
+      <div class="code-block" id="code-panel"></div>
+      <div class="info-block" id="info-panel"></div>
+      <div class="legend">
+        <div class="legend-row"><div class="dot" style="background:#c8f"></div><span style="color:#888">agent being checked (i)</span></div>
+        <div class="legend-row"><div class="dot" style="background:#4f4"></div><span style="color:#888">inside radius → contributes</span></div>
+        <div class="legend-row"><div class="dot" style="background:#f96"></div><span style="color:#888">id.x == i → skip (self)</span></div>
+        <div class="legend-row"><div class="dot" style="background:#444"></div><span style="color:#888">outside radius</span></div>
+        <div class="legend-row"><div class="dot" style="background:#fd4;border-radius:0"></div><span style="color:#888">avoidV accumulator</span></div>
+        <div class="legend-row"><div class="dot" style="background:#4af;border-radius:0"></div><span style="color:#888">final velocity</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" style="width:100%;max-width:900px">
+    <button id="btn-prev">← prev</button>
+    <input type="range" id="slider" min="0" value="0">
+    <button id="btn-next">next →</button>
+    <button id="btn-play">▶ play</button>
+  </div>
+
+  <footer>each dot is one GPU thread — the slider steps through loop iteration i, showing what all threads compute simultaneously at that step</footer>
+
+  <script>
+    const N      = 7;
+    const RADIUS = 110;
+    const W      = 520, H = 520;
+    const CX     = W / 2, CY = H / 2;
+
+    // ── colors ──────────────────────────────────────────────
+    const C = {
+      bg:     [8,   8,   8  ],
+      border: [30,  30,  30 ],
+      focal:  [204, 136, 255],   // checked agent (i)
+      in:     [68,  255, 68 ],   // inside radius
+      self:   [255, 153, 102],   // self-skip
+      out:    [55,  55,  55 ],   // outside radius
+      line_in:[68,  255, 68, 60],
+      line_out:[40, 40,  40, 40],
+      avoid:  [255, 221, 68 ],   // avoidV
+      vel:    [68,  170, 255],   // final v
+    };
+
+    function rgb(arr, a) {
+      let [r,g,b] = arr;
+      return a !== undefined ? `rgba(${r},${g},${b},${a/255})` : `rgb(${r},${g},${b})`;
+    }
+
+    // ── agent positions (fixed ring + one center-ish) ──────
+    const agents = Array.from({length: N}, (_, k) => {
+      let ang = (k / N) * Math.PI * 2 - Math.PI / 2;
+      let r   = 175 + (k % 2 === 0 ? 10 : -25);
+      return { x: CX + r * Math.cos(ang), y: CY + r * Math.sin(ang) };
+    });
+    // nudge one inside the ring for variety
+    agents[2].x = CX + 55; agents[2].y = CY - 30;
+
+    // ── state ───────────────────────────────────────────────
+    let step      = 0;   // current i (the "checked" agent)
+    let playing   = false;
+    let playTimer = null;
+    let accums    = Array.from({length: N}, () => ({x: 0, y: 0})); // avoidV per agent
+
+    // recompute accumulators up through current step
+    function recompute() {
+      accums = Array.from({length: N}, () => ({x: 0, y: 0}));
+      for (let i = 0; i <= step; i++) {
+        for (let j = 0; j < N; j++) {
+          if (i === j) continue;
+          let dx = agents[j].x - agents[i].x;
+          let dy = agents[j].y - agents[i].y;
+          let d  = Math.hypot(dx, dy);
+          if (d < RADIUS) {
+            // avoidV += p_j - agents[i]  →  repulsion FROM i FOR agent j
+            accums[j].x += agents[j].x - agents[i].x;
+            accums[j].y += agents[j].y - agents[i].y;
+          }
+        }
+      }
+    }
+
+    // ── canvas draw ─────────────────────────────────────────
+    const canvas = document.getElementById('c');
+    const ctx    = canvas.getContext('2d');
+
+    function drawArrow(x1, y1, x2, y2, col, w, label) {
+      let dx = x2-x1, dy = y2-y1;
+      let len = Math.hypot(dx, dy);
+      if (len < 1) return;
+      ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      let ang = Math.atan2(dy, dx);
+      let hs  = Math.max(6, Math.min(13, w * 3.5));
+      ctx.save();
+      ctx.translate(x2, y2); ctx.rotate(ang);
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(-hs, -hs*0.38); ctx.lineTo(-hs, hs*0.38);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (label) {
+        let px = -(dy/len)*14, py = (dx/len)*14;
+        ctx.fillStyle = col; ctx.font = '11px monospace';
+        ctx.fillText(label, x2+px, y2+py);
+      }
+    }
+
+    function vecNorm(vx, vy, len) {
+      let m = Math.hypot(vx, vy);
+      return m < 0.001 ? {x:0,y:0} : {x: vx/m*len, y: vy/m*len};
+    }
+
+    function draw() {
+      recompute();
+      const checkedAgent = agents[step];
+
+      ctx.fillStyle = rgb(C.bg);
+      ctx.fillRect(0, 0, W, H);
+
+      // ── for each agent j: draw radius ring + line to checked agent ──
+      for (let j = 0; j < N; j++) {
+        let isSelf   = j === step;
+        let dx       = checkedAgent.x - agents[j].x;
+        let dy       = checkedAgent.y - agents[j].y;
+        let d        = Math.hypot(dx, dy);
+        let inRadius = !isSelf && d < RADIUS;
+
+        // radius ring per agent
+        ctx.strokeStyle = isSelf  ? rgb(C.self, 35) :
+                          inRadius? rgb(C.in,   30) : rgb(C.border, 80);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.arc(agents[j].x, agents[j].y, RADIUS, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // line from agent j to checked agent (agent i)
+        if (!isSelf) {
+          ctx.strokeStyle = inRadius ? rgb(C.line_in) : rgb(C.line_out);
+          ctx.lineWidth   = inRadius ? 1.5 : 0.5;
+          ctx.beginPath();
+          ctx.moveTo(agents[j].x, agents[j].y);
+          ctx.lineTo(checkedAgent.x, checkedAgent.y);
+          ctx.stroke();
+        }
+      }
+
+      // ── avoidV accumulator arrows (per agent, up to current step) ──
+      for (let j = 0; j < N; j++) {
+        let av = accums[j];
+        let m  = Math.hypot(av.x, av.y);
+        if (m < 1) continue;
+        let n  = vecNorm(av.x, av.y, Math.min(m * 0.18, 75));
+        drawArrow(
+          agents[j].x, agents[j].y,
+          agents[j].x + n.x, agents[j].y + n.y,
+          rgb(C.avoid, 220), 2.5, null
+        );
+      }
+
+      // ── agent dots ──────────────────────────────────────────
+      for (let j = 0; j < N; j++) {
+        let isSelf   = j === step;
+        let dx       = checkedAgent.x - agents[j].x;
+        let dy       = checkedAgent.y - agents[j].y;
+        let d        = Math.hypot(dx, dy);
+        let inRadius = !isSelf && d < RADIUS;
+
+        let col = isSelf   ? C.self :
+                  inRadius ? C.in   : C.out;
+
+        ctx.fillStyle = rgb(col);
+        ctx.beginPath();
+        ctx.arc(agents[j].x, agents[j].y, 9, 0, Math.PI*2);
+        ctx.fill();
+
+        // label: id.x = j
+        ctx.fillStyle = rgb(col, 180);
+        ctx.font = '10px monospace';
+        ctx.fillText(`id=${j}`, agents[j].x + 12, agents[j].y - 8);
+      }
+
+      // ── highlight checked agent ──────────────────────────────
+      ctx.strokeStyle = rgb(C.focal, 200);
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.arc(checkedAgent.x, checkedAgent.y, 16, 0, Math.PI*2);
+      ctx.stroke();
+
+      // ── step label ───────────────────────────────────────────
+      ctx.fillStyle = rgb(C.focal, 160);
+      ctx.font = '11px monospace';
+      ctx.fillText(`i = ${step}`, checkedAgent.x + 20, checkedAgent.y + 5);
+
+      updatePanels();
+    }
+
+    // ── code panel ──────────────────────────────────────────
+    function updatePanels() {
+      const checkedAgent = agents[step];
+      const codeEl = document.getElementById('code-panel');
+
+      let contributors = [];
+      let selfSkipped  = false;
+
+      for (let j = 0; j < N; j++) {
+        if (j === step) { selfSkipped = true; continue; }
+        let d = Math.hypot(checkedAgent.x - agents[j].x, checkedAgent.y - agents[j].y);
+        if (d < RADIUS) contributors.push(j);
+      }
+
+      let hasHit = contributors.length > 0;
+
+      codeEl.innerHTML = [
+        `<span class="on"><span class="kw">var</span> avoidV = vec2(0.0);</span>`,
+        ``,
+        `<span class="on"><span class="kw">for</span> (<span class="kw">var</span> i = 0u; i &lt; count; i++) {</span>`,
+        `  <span class="on">  <span class="kw">// i = ${step} — checking all agents</span></span>`,
+        ``,
+        `  <span class="skip">  <span class="kw">if</span> (i == id.x) { <span class="kw">continue</span>; }</span>`,
+        `  <span class="dim">  // ↑ each agent skips itself</span>`,
+        ``,
+        hasHit
+          ? `  <span class="hit">  <span class="kw">if</span> (d &lt; ${RADIUS}) {</span>`
+          : `  <span class="dim">  if (d &lt; ${RADIUS}) {  // no agents in range</span>`,
+        hasHit
+          ? `  <span class="acc">    avoidV += p − other;  // ${contributors.length} neighbor(s)</span>`
+          : `  <span class="dim">    avoidV += p − other;</span>`,
+        hasHit
+          ? `  <span class="hit">  }</span>`
+          : `  <span class="dim">  }</span>`,
+        `<span class="on">}</span>`,
+        ``,
+        `<span class="on">v += 0.08 * avoidV;</span>`,
+        `<span class="on">v = normalize(v);</span>`,
+      ].join('\n');
+
+      // info panel
+      const infoEl = document.getElementById('info-panel');
+      let rows = [];
+      rows.push(`<span class="label">step </span><span class="val">i = ${step} of ${N-1}</span>`);
+      rows.push(`<span class="label">checking agent </span><span class="val">id=${step}</span>`);
+      rows.push(`<span class="label">self-skip fires for </span><span class="val">id=${step} only</span>`);
+      rows.push(`<span class="label">in-radius agents </span><span class="val">${contributors.length > 0 ? contributors.map(j=>`id=${j}`).join(', ') : 'none'}</span>`);
+
+      for (let j = 0; j < N; j++) {
+        let av = accums[j];
+        let m  = Math.hypot(av.x, av.y);
+        if (m < 1) continue;
+        rows.push(`<span class="label">avoidV[id=${j}] </span><span class="val">(${Math.round(av.x)}, ${Math.round(av.y)})</span>`);
+      }
+
+      infoEl.innerHTML = rows.join('<br>');
+    }
+
+    // ── controls ────────────────────────────────────────────
+    const slider  = document.getElementById('slider');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnPlay = document.getElementById('btn-play');
+
+    slider.max = N - 1;
+    slider.value = 0;
+
+    function setStep(s) {
+      step = Math.max(0, Math.min(N-1, s));
+      slider.value = step;
+      btnPrev.disabled = step === 0;
+      btnNext.disabled = step === N-1;
+      draw();
+    }
+
+    slider.addEventListener('input', () => setStep(+slider.value));
+    btnPrev.addEventListener('click', () => setStep(step - 1));
+    btnNext.addEventListener('click', () => setStep(step + 1));
+
+    btnPlay.addEventListener('click', () => {
+      if (playing) {
+        clearInterval(playTimer);
+        playing = false;
+        btnPlay.textContent = '▶ play';
+      } else {
+        if (step === N-1) setStep(0);
+        playing = true;
+        btnPlay.textContent = '⏸ pause';
+        playTimer = setInterval(() => {
+          if (step >= N-1) {
+            clearInterval(playTimer);
+            playing = false;
+            btnPlay.textContent = '▶ play';
+          } else {
+            setStep(step + 1);
+          }
+        }, 900);
+      }
+    });
+
+    setStep(0);
+  </script>
+</body>
+</html>
