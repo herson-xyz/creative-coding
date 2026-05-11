@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --bg:      #0e0e0e;
+      --surface: #131313;
+      --border:  #1e1e1e;
+      --text:    #ccc;
+      --muted:   #444;
+      --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      --c-range: #c8f;
+      --c-fear:  #fd3;
+      --c-prey:  #8f8;
+      --c-pred:  #f66;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    #legend {
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--muted);
+      align-self: center;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    #sim-row {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #canvas-area canvas {
+      display: block;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Controls panel ── */
+    #controls {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      padding-top: 2px;
+    }
+    .ctrl-heading {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .ctrl-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+    .ctrl {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ctrl-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .ctrl-label {
+      font-size: 11px;
+      color: var(--text);
+    }
+    .ctrl-val {
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 36px;
+      text-align: right;
+    }
+    .ctrl-hint {
+      font-size: 9px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .range-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-range); }
+    .fear-ctrl  input[type=range]::-webkit-slider-thumb { background: var(--c-fear); }
+    .prey-ctrl  input[type=range]::-webkit-slider-thumb { background: var(--c-prey); }
+    .pred-ctrl  input[type=range]::-webkit-slider-thumb { background: var(--c-pred); }
+    .range-ctrl .ctrl-val { color: var(--c-range); }
+    .fear-ctrl  .ctrl-val { color: var(--c-fear); }
+    .prey-ctrl  .ctrl-val { color: var(--c-prey); }
+    .pred-ctrl  .ctrl-val { color: var(--c-pred); }
+
+    /* ── Reset button ── */
+    #btn-reset {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      border-radius: 3px;
+      align-self: flex-end;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #btn-reset:hover { color: var(--text); border-color: #444; }
+
+    /* ── Code view ── */
+    .code-view {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      font-size: 10.5px;
+      line-height: 1.8;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .code-comment { color: var(--muted); }
+    .code-kw      { color: #88b4e8; }
+    .code-fn      { color: #e8c788; }
+    .code-dim     { color: #555; }
+    .code-param {
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .code-param.range { color: var(--c-range); }
+    .code-param.fear  { color: var(--c-fear); }
+    .code-param.prey  { color: var(--c-prey); }
+    .code-param.pred  { color: var(--c-pred); }
+    @keyframes paramFlash {
+      0%   { background: rgba(255,255,255,0.18); }
+      100% { background: transparent; }
+    }
+    .code-param.flash {
+      animation: paramFlash 0.4s ease-out forwards;
+    }
+    hr.code-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div id="legend">
+    <span><span class="dot" style="background:#aaa"></span>prey — flee</span>
+    <span><span class="dot" style="background:#f44"></span>predators — chase</span>
+  </div>
+
+  <div id="sim-row">
+    <div id="canvas-area"></div>
+
+    <div id="controls">
+      <span class="ctrl-heading">simulation parameters</span>
+
+      <div class="ctrl-block">
+        <div class="ctrl range-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Awareness Range</span>
+            <span class="ctrl-val" id="val-ar">200</span>
+          </div>
+          <input type="range" id="sl-ar" min="2" max="300" step="1" value="200">
+          <span class="ctrl-hint">max detection radius at the right edge of the field</span>
+        </div>
+
+        <div class="ctrl fear-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Fear Response</span>
+            <span class="ctrl-val" id="val-fr">0.50</span>
+          </div>
+          <input type="range" id="sl-fr" min="0" max="2" step="0.01" value="0.5">
+          <span class="ctrl-hint">how aggressively fear overrides momentum</span>
+        </div>
+
+        <div class="ctrl prey-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Flight Speed</span>
+            <span class="ctrl-val" id="val-fs">0.20</span>
+          </div>
+          <input type="range" id="sl-fs" min="0.05" max="1.0" step="0.01" value="0.2">
+          <span class="ctrl-hint">prey fixed speed after normalize</span>
+        </div>
+
+        <div class="ctrl pred-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Hunt Speed</span>
+            <span class="ctrl-val" id="val-hs">0.30</span>
+          </div>
+          <input type="range" id="sl-hs" min="0.05" max="1.0" step="0.01" value="0.3">
+          <span class="ctrl-hint">predator speed — advantage collapses when ≤ flight speed</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="btn-reset-params">reset parameters</button>
+        <button id="btn-reset">reset positions</button>
+      </div>
+
+      <!-- Live code view -->
+      <div class="code-view">
+        <div>
+          <span class="code-comment">// prey</span><br>
+          <span class="code-kw">let</span> radius = 2 + (p.x / rez) * <span class="code-param range" id="cv-ar1">200</span>;<br>
+          v += <span class="code-param fear" id="cv-fr1">0.50</span> * acceleration;<br>
+          <span class="code-dim">velocities</span>[id.x] = <span class="code-fn">normalize</span>(v) * <span class="code-param prey" id="cv-fs">0.20</span>;
+        </div>
+        <hr class="code-divider">
+        <div>
+          <span class="code-comment">// predators</span><br>
+          <span class="code-kw">let</span> radius = 2 + (p.x / rez) * <span class="code-param range" id="cv-ar2">200</span>;<br>
+          v += <span class="code-param fear" id="cv-fr2">0.50</span> * acceleration;<br>
+          <span class="code-dim">predatorVelocities</span>[id.x] = <span class="code-fn">normalize</span>(v) * <span class="code-param pred" id="cv-hs">0.30</span>;
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+  <script>
+    function flash(el) {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+    }
+
+    function bind(sliderId, valId, codeIds, fmt, key) {
+      document.getElementById(sliderId).addEventListener('input', function() {
+        const v = parseFloat(this.value);
+        const s = fmt(v);
+        document.getElementById(valId).textContent = s;
+        for (const id of codeIds) {
+          const el = document.getElementById(id);
+          el.textContent = s;
+          flash(el);
+        }
+        window.simParams?.update(key, v);
+      });
+    }
+
+    bind('sl-ar', 'val-ar', ['cv-ar1', 'cv-ar2'], v => String(Math.round(v)), 'awarenessRange');
+    bind('sl-fr', 'val-fr', ['cv-fr1', 'cv-fr2'], v => v.toFixed(2),          'fearResponse');
+    bind('sl-fs', 'val-fs', ['cv-fs'],             v => v.toFixed(2),          'flightSpeed');
+    bind('sl-hs', 'val-hs', ['cv-hs'],             v => v.toFixed(2),          'huntSpeed');
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      window.simParams?.reset();
+    });
+
+    const DEFAULTS = [
+      { sliderId: 'sl-ar', valId: 'val-ar', codeIds: ['cv-ar1','cv-ar2'], fmt: v => String(Math.round(v)), key: 'awarenessRange', value: 200   },
+      { sliderId: 'sl-fr', valId: 'val-fr', codeIds: ['cv-fr1','cv-fr2'], fmt: v => v.toFixed(2),          key: 'fearResponse',   value: 0.5   },
+      { sliderId: 'sl-fs', valId: 'val-fs', codeIds: ['cv-fs'],           fmt: v => v.toFixed(2),          key: 'flightSpeed',    value: 0.2   },
+      { sliderId: 'sl-hs', valId: 'val-hs', codeIds: ['cv-hs'],           fmt: v => v.toFixed(2),          key: 'huntSpeed',      value: 0.3   },
+    ];
+
+    document.getElementById('btn-reset-params').addEventListener('click', () => {
+      for (const d of DEFAULTS) {
+        document.getElementById(d.sliderId).value = d.value;
+        const s = d.fmt(d.value);
+        document.getElementById(d.valId).textContent = s;
+        for (const id of d.codeIds) {
+          const el = document.getElementById(id);
+          el.textContent = s;
+          flash(el);
+        }
+        window.simParams?.update(d.key, d.value);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Predator-Prey — Sign Flip</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #1e1e1e;
+      --text: #d4d4d4;
+      --muted: #555;
+      --accent: #c8f;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      gap: 1.25rem;
+    }
+    header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: baseline;
+      gap: 1.25rem;
+    }
+    .back { font-size: 0.75rem; color: var(--muted); text-decoration: none; }
+    .back:hover { color: var(--accent); }
+    h1 { font-size: 0.95rem; font-weight: 400; color: var(--accent); letter-spacing: 0.12em; }
+    .sub { font-size: 0.7rem; color: var(--muted); }
+    canvas { display: block; border: 1px solid var(--border); cursor: default; }
+    footer { font-size: 0.65rem; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../../../">← back</a>
+    <h1>predator-prey — sign flip</h1>
+    <span class="sub">iteration 03</span>
+  </header>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script>
+    const RADIUS   = 130;
+
+    const BG       = [8,   8,   8  ];
+    const IN_R     = [68,  200, 68 ];
+    const OUT_R    = [45,  45,  45 ];
+    const VEC_C    = [255, 153, 102];   // individual force vectors
+    const ACC_C    = [255, 221, 68 ];   // resultant acceleration
+    const FLEE_C   = [100, 170, 255];   // blue — flee / prey
+    const CHASE_C  = [255, 85,  85 ];   // red  — chase / predator
+    const MUTED    = [70,  70,  70 ];
+
+    let mode = 'flee';   // 'flee' | 'chase'
+    let focalPos;
+    let neighbors = [];
+    let dragging  = -1;  // -1=none  0=focal  i+1=neighbor[i]
+    let dragOff;
+
+    // Button rects populated each frame
+    let btnFlee, btnChase;
+
+    function setup() {
+      createCanvas(600, 600);
+      textFont('monospace');
+      focalPos = createVector(width / 2, height / 2 + 10);
+      neighbors = [
+        createVector(focalPos.x - 85,  focalPos.y + 48 ),
+        createVector(focalPos.x + 78,  focalPos.y - 58 ),
+        createVector(focalPos.x + 32,  focalPos.y + 112),
+        createVector(focalPos.x - 170, focalPos.y - 75 ),
+        createVector(focalPos.x + 205, focalPos.y + 70 ),
+      ];
+    }
+
+    function draw() {
+      background(...BG);
+
+      const modeC   = mode === 'flee' ? FLEE_C  : CHASE_C;
+      const focalC  = mode === 'flee' ? [155, 160, 175] : CHASE_C;
+
+      // ── compute ────────────────────────────────────────────────
+      let inside = [];
+      let accel  = createVector(0, 0);
+
+      for (let i = 0; i < neighbors.length; i++) {
+        let d = p5.Vector.dist(focalPos, neighbors[i]);
+        if (d < RADIUS && d > 1) {
+          inside.push(i);
+          let v = mode === 'flee'
+            ? p5.Vector.sub(focalPos, neighbors[i])   // p − other
+            : p5.Vector.sub(neighbors[i], focalPos);  // other − p
+          accel.add(v);
+        }
+      }
+
+      // ── radius ring ────────────────────────────────────────────
+      noFill();
+      stroke(...focalC, 40);
+      strokeWeight(1.5);
+      circle(focalPos.x, focalPos.y, RADIUS * 2);
+
+      // ── neighbors ──────────────────────────────────────────────
+      for (let i = 0; i < neighbors.length; i++) {
+        let col = inside.includes(i) ? IN_R : OUT_R;
+        fill(...col);
+        noStroke();
+        circle(neighbors[i].x, neighbors[i].y, 14);
+        if (dragging === i + 1) {
+          noFill();
+          stroke(...col, 90);
+          strokeWeight(1);
+          circle(neighbors[i].x, neighbors[i].y, 26);
+        }
+      }
+
+      // ── individual force vectors ───────────────────────────────
+      for (let i of inside) {
+        let dir = mode === 'flee'
+          ? p5.Vector.sub(focalPos, neighbors[i]).normalize()
+          : p5.Vector.sub(neighbors[i], focalPos).normalize();
+        let tip = p5.Vector.add(focalPos, p5.Vector.mult(dir, 64));
+        drawArrow(focalPos, tip, [...VEC_C, 185], 1.8, null);
+      }
+
+      // ── resultant ──────────────────────────────────────────────
+      if (inside.length > 0) {
+        let tip = p5.Vector.add(focalPos, accel.copy().normalize().mult(90));
+        drawArrow(focalPos, tip, [...ACC_C, 235], 3.2, 'acceleration');
+      }
+
+      // ── focal agent ────────────────────────────────────────────
+      fill(...focalC);
+      noStroke();
+      circle(focalPos.x, focalPos.y, 18);
+      fill(...focalC, 150);
+      textSize(10);
+      textAlign(LEFT, BASELINE);
+      text(mode === 'flee' ? 'prey' : 'predator', focalPos.x + 13, focalPos.y - 10);
+
+      drawCode();
+      drawButtons();
+      drawLegend();
+    }
+
+    // ── code overlay ─────────────────────────────────────────────
+    function drawCode() {
+      let x = 14, y = 22;
+      textSize(11);
+      textAlign(LEFT, BASELINE);
+
+      const on   = [210, 210, 210, 215];
+      const dim  = [55,  55,  55,  155];
+
+      const fleeHi  = [...FLEE_C,  255];
+      const chaseHi = [...CHASE_C, 255];
+
+      // Both formulas always visible — active one is bright
+      const lines = [
+        { t: 'for(var i=0u; i < count; i++) {',    c: on                                         },
+        { t: '  if(d < radius) {',                  c: on                                         },
+        { t: '    acceleration += p − other;',      c: mode === 'flee'  ? fleeHi  : dim           },
+        { t: '    acceleration += other − p;',      c: mode === 'chase' ? chaseHi : dim           },
+        { t: '  }',                                  c: on                                         },
+        { t: '}',                                    c: on                                         },
+      ];
+
+      for (let i = 0; i < lines.length; i++) {
+        fill(...lines[i].c);
+        noStroke();
+        text(lines[i].t, x, y + i * 16);
+      }
+
+      // Inline annotation on active formula
+      const fleeLine  = y + 2 * 16;
+      const chaseLine = y + 3 * 16;
+      textSize(10);
+
+      fill(...FLEE_C, mode === 'flee' ? 170 : 55);
+      text('// repel — away', x + 258, fleeLine);
+
+      fill(...CHASE_C, mode === 'chase' ? 170 : 55);
+      text('// attract — toward', x + 258, chaseLine);
+
+      // Sign relationship note
+      fill(...MUTED, 180);
+      textSize(10);
+      text('other − p  =  −(p − other)', x, y + lines.length * 16 + 10);
+    }
+
+    // ── toggle buttons ───────────────────────────────────────────
+    function drawButtons() {
+      const bw = 134, bh = 28, gap = 8;
+      const bx = width / 2 - (bw * 2 + gap) / 2;
+      const by = height - 50;
+
+      btnFlee  = { x: bx,           y: by, w: bw, h: bh };
+      btnChase = { x: bx + bw + gap, y: by, w: bw, h: bh };
+
+      drawBtn(btnFlee,  'FLEE   p − other',   mode === 'flee',  FLEE_C);
+      drawBtn(btnChase, 'CHASE   other − p', mode === 'chase', CHASE_C);
+    }
+
+    function drawBtn(r, label, active, col) {
+      const [rc, gc, bc] = col;
+      noStroke();
+      fill(rc, gc, bc, active ? 42 : 10);
+      rect(r.x, r.y, r.w, r.h, 3);
+      stroke(rc, gc, bc, active ? 190 : 45);
+      strokeWeight(1);
+      noFill();
+      rect(r.x, r.y, r.w, r.h, 3);
+      noStroke();
+      fill(rc, gc, bc, active ? 255 : 75);
+      textSize(11);
+      textAlign(CENTER, CENTER);
+      text(label, r.x + r.w / 2, r.y + r.h / 2);
+      textAlign(LEFT, BASELINE);
+    }
+
+    // ── legend ───────────────────────────────────────────────────
+    function drawLegend() {
+      const x = 14, y = height - 90;
+      noStroke();
+      textSize(10);
+      fill(...VEC_C, 175); text('—  per-neighbor force  (normalized for display)', x, y);
+      fill(...ACC_C, 175); text('—  acceleration  (sum)', x, y + 16);
+      fill(...IN_R,  140); text('●  neighbor in range', x, y + 32);
+      fill(...MUTED);      text('drag any agent  ·  space to flip', width - 176, height - 14);
+    }
+
+    // ── arrow helper ─────────────────────────────────────────────
+    function drawArrow(from, to, col, w, label) {
+      const [r, g, b, a] = col.length === 4 ? col : [...col, 255];
+      stroke(r, g, b, a);
+      strokeWeight(w);
+      line(from.x, from.y, to.x, to.y);
+
+      const ang = atan2(to.y - from.y, to.x - from.x);
+      const hs  = constrain(w * 3.5, 6, 13);
+      fill(r, g, b, a);
+      noStroke();
+      push();
+      translate(to.x, to.y);
+      rotate(ang);
+      triangle(0, 0, -hs, -hs * 0.38, -hs, hs * 0.38);
+      pop();
+
+      if (label) {
+        fill(r, g, b, min(a + 40, 255));
+        noStroke();
+        textSize(12);
+        const perp = createVector(-(to.y - from.y), to.x - from.x).normalize().mult(14);
+        text(label, to.x + perp.x, to.y + perp.y);
+      }
+    }
+
+    // ── interaction ──────────────────────────────────────────────
+    function mousePressed() {
+      if (btnFlee  && inRect(mouseX, mouseY, btnFlee))  { mode = 'flee';  return; }
+      if (btnChase && inRect(mouseX, mouseY, btnChase)) { mode = 'chase'; return; }
+
+      const mv = createVector(mouseX, mouseY);
+      if (p5.Vector.dist(mv, focalPos) < 16) {
+        dragging = 0;
+        dragOff  = createVector(focalPos.x - mouseX, focalPos.y - mouseY);
+        return;
+      }
+      for (let i = 0; i < neighbors.length; i++) {
+        if (p5.Vector.dist(mv, neighbors[i]) < 16) {
+          dragging = i + 1;
+          dragOff  = createVector(neighbors[i].x - mouseX, neighbors[i].y - mouseY);
+          return;
+        }
+      }
+    }
+
+    function mouseDragged() {
+      if (dragging === 0) {
+        focalPos.set(mouseX + dragOff.x, mouseY + dragOff.y);
+      } else if (dragging > 0) {
+        neighbors[dragging - 1].set(mouseX + dragOff.x, mouseY + dragOff.y);
+      }
+    }
+
+    function mouseReleased() { dragging = -1; }
+
+    function keyPressed() {
+      if (key === ' ') mode = mode === 'flee' ? 'chase' : 'flee';
+    }
+
+    function inRect(mx, my, r) {
+      return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    }
+  </script>
+
+  <footer>drag any agent · click FLEE / CHASE or press space to flip the sign</footer>
+</body>
+</html>

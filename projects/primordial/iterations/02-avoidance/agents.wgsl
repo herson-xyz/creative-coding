@@ -15,6 +15,12 @@
 @group(1) @binding(3)
   var<uniform> mode : u32; // 0 = drift, 1 = avoidance
 
+@group(1) @binding(4)
+  var<uniform> radius : f32;
+
+@group(1) @binding(5)
+  var<uniform> blendWeight : f32;
+
 // Other buffers
 @group(2) @binding(0)  
   var<storage, read_write> positions : array<vec2f>;
@@ -63,11 +69,11 @@ fn simulate(@builtin(global_invocation_id) id : vec3u) {
       if (i == id.x) { continue; }
       var other = positions[i];
       var d = distance(other, p);
-      if (d < 10) {
+      if (d < radius) {
         avoidV += p - other;
       }
     }
-    v += 0.08 * avoidV;
+    v += blendWeight * avoidV;
   }
   v = normalize(v);
   velocities[id.x] = v;

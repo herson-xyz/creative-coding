@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Predator-Prey — Radius Visualizer</title>
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #1e1e1e;
+      --text: #d4d4d4;
+      --muted: #555;
+      --accent: #c8f;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      gap: 1.25rem;
+    }
+    header {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      align-items: baseline;
+      gap: 1.25rem;
+    }
+    .back {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .back:hover { color: var(--accent); }
+    h1 {
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+    }
+    .sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    canvas { display: block; border: 1px solid var(--border); cursor: none; }
+    footer {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../../../">← back</a>
+    <h1>predator-prey — radius visualizer</h1>
+    <span class="sub">iteration 03</span>
+  </header>
+
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+  <script>
+    const MAX_RADIUS = 200.0;
+    const MIN_RADIUS = 2.0;
+
+    const BG      = [8,   8,   8  ];
+    const PREY_C  = [68,  255, 68 ];
+    const PRED_C  = [255, 68,  68 ];
+    const RING_C  = [204, 136, 255];
+    const LABEL_C = [255, 221, 68 ];
+    const AXIS_C  = [80,  80,  80 ];
+    const MUTED   = [80,  80,  80 ];
+
+    function setup() {
+      createCanvas(600, 600);
+      textFont('monospace');
+    }
+
+    function draw() {
+      background(...BG);
+
+      let mx = constrain(mouseX, 0, width);
+      let my = constrain(mouseY, 0, height);
+      let t  = mx / width;
+      let r  = MIN_RADIUS + t * MAX_RADIUS;
+
+      drawGradientBand();
+      drawAxisRuler();
+      drawRadiusCircle(mx, my, r);
+      drawAgent(mx, my);
+      drawCode(mx, r);
+      drawLegend();
+    }
+
+    function drawGradientBand() {
+      // Horizontal gradient strip showing radius magnitude across x
+      let stripH = 6;
+      let stripY = height - 28;
+      noStroke();
+      for (let x = 0; x <= width; x++) {
+        let t = x / width;
+        let alpha = 35 + t * 80;
+        fill(204, 136, 255, alpha);
+        rect(x, stripY, 1, stripH);
+      }
+
+      // Tick marks
+      stroke(...AXIS_C);
+      strokeWeight(1);
+      for (let i = 0; i <= 4; i++) {
+        let x = (i / 4) * width;
+        line(x, stripY - 3, x, stripY + stripH + 3);
+      }
+    }
+
+    function drawAxisRuler() {
+      // Vertical dashed guide at cursor x
+      let mx = constrain(mouseX, 0, width);
+      stroke(...AXIS_C, 60);
+      strokeWeight(1);
+      drawingContext.setLineDash([4, 6]);
+      line(mx, 0, mx, height - 36);
+      drawingContext.setLineDash([]);
+
+      // x / rez label
+      let t = mx / width;
+      noStroke();
+      fill(...AXIS_C);
+      textSize(10);
+      textAlign(CENTER);
+      text(`x/rez = ${nf(t, 1, 2)}`, mx, height - 14);
+      textAlign(LEFT);
+    }
+
+    function drawRadiusCircle(cx, cy, r) {
+      // Soft filled area
+      noStroke();
+      fill(...RING_C, 12);
+      circle(cx, cy, r * 2);
+
+      // Main ring
+      noFill();
+      stroke(...RING_C, 160);
+      strokeWeight(1.5);
+      circle(cx, cy, r * 2);
+
+      // Radius line
+      stroke(...LABEL_C, 200);
+      strokeWeight(1.5);
+      line(cx, cy, cx + r, cy);
+
+      // r label along the line
+      noStroke();
+      fill(...LABEL_C, 220);
+      textSize(11);
+      text(`r = ${round(r)}`, cx + r * 0.42, cy - 7);
+    }
+
+    function drawAgent(cx, cy) {
+      // Agent dot
+      fill(...RING_C);
+      noStroke();
+      circle(cx, cy, 14);
+
+      // Small id.x label
+      fill(...RING_C, 150);
+      noStroke();
+      textSize(10);
+      text('agent', cx + 10, cy - 9);
+    }
+
+    function drawCode(mx, r) {
+      let x = 14, y = 22;
+      noStroke();
+      textSize(11);
+
+      let on   = [220, 220, 220, 220];
+      let hi   = [...LABEL_C, 255];
+      let dim  = [70, 70, 70, 180];
+
+      // Static lines
+      let lines = [
+        { t: 'const maxRadius = 200.0;',                    c: dim  },
+        { t: '',                                             c: dim  },
+        { t: 'let radius = 2 + (p.x / rez) * maxRadius;',  c: on   },
+        { t: '',                                             c: dim  },
+        { t: 'if (d < radius) {',                           c: on   },
+        { t: '  acceleration += p − other; // flee',        c: on   },
+        { t: '}',                                           c: on   },
+      ];
+
+      for (let i = 0; i < lines.length; i++) {
+        let [r_, g, b, a] = lines[i].c;
+        fill(r_, g, b, a);
+        text(lines[i].t, x, y + i * 16);
+      }
+
+      // Live evaluation
+      let evalY = y + lines.length * 16 + 10;
+      fill(...LABEL_C, 190);
+      text(`// radius = 2 + (${round(mx)} / 600) × 200`, x, evalY);
+      fill(...RING_C, 220);
+      text(`//        = ${nf(r, 1, 1)}`, x, evalY + 16);
+    }
+
+    function drawLegend() {
+      let x = 14, y = height - 90;
+      noStroke();
+      textSize(10);
+      fill(...RING_C,  180); text('○  perception radius  r', x, y);
+      fill(...LABEL_C, 180); text('—  r = 2 + (x/rez) × maxRadius', x, y + 16);
+      fill(...AXIS_C);       text('move cursor left ↔ right to shift r', x, y + 32);
+    }
+  </script>
+
+  <footer>move your cursor horizontally — the perception radius scales with x position</footer>
+</body>
+</html>

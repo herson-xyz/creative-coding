@@ -2,6 +2,25 @@
   "project": "Primordial",
   "iterations": [
     {
+      "slug": "03-predator-prey",
+      "title": "Predator / Prey",
+      "number": 3,
+      "date": "2026-05-06",
+      "description": "Two agent classes — prey flee from nearby predators, predators chase nearby prey. Opposite local rules, emergent pursuit-and-evasion dynamics, one simulation loop.",
+      "artifacts": [
+        {
+          "slug": "interactive",
+          "title": "Interactive",
+          "description": "Move your cursor left ↔ right to see how the perception radius scales with x position."
+        },
+        {
+          "slug": "sign-flip",
+          "title": "Sign Flip",
+          "description": "Toggle between p − other and other − p to see how one sign flip inverts flee into chase."
+        }
+      ]
+    },
+    {
       "slug": "02-avoidance",
       "title": "Avoidance",
       "number": 2,

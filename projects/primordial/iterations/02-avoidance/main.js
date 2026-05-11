@@ -17,6 +17,8 @@ const uniforms = {
   time: 0,
   count: 1000,
   mode: 0, // 0 = drift, 1 = avoidance
+  radius: 10,
+  blendWeight: 0.08,
 };
 
 // CPU-only settings
@@ -88,12 +90,26 @@ async function main() {
   });
   gpu.queue.writeBuffer(modeBuffer, 0, new Uint32Array([uniforms.mode]));
 
+  const radiusBuffer = gpu.createBuffer({
+    size: sizes.f32,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+  });
+  gpu.queue.writeBuffer(radiusBuffer, 0, new Float32Array([uniforms.radius]));
+
+  const blendWeightBuffer = gpu.createBuffer({
+    size: sizes.f32,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+  });
+  gpu.queue.writeBuffer(blendWeightBuffer, 0, new Float32Array([uniforms.blendWeight]));
+
   const uniformsLayout = gpu.createBindGroupLayout({
     entries: [
       { visibility, binding: 0, buffer: { type: "uniform" } },
       { visibility, binding: 1, buffer: { type: "uniform" } },
       { visibility, binding: 2, buffer: { type: "uniform" } },
       { visibility, binding: 3, buffer: { type: "uniform" } },
+      { visibility, binding: 4, buffer: { type: "uniform" } },
+      { visibility, binding: 5, buffer: { type: "uniform" } },
     ],
   });
   const uniformsBuffersBindGroup = gpu.createBindGroup({
@@ -103,6 +119,8 @@ async function main() {
       { binding: 1, resource: { buffer: timeBuffer } },
       { binding: 2, resource: { buffer: countBuffer } },
       { binding: 3, resource: { buffer: modeBuffer } },
+      { binding: 4, resource: { buffer: radiusBuffer } },
+      { binding: 5, resource: { buffer: blendWeightBuffer } },
     ],
   });
 
@@ -165,6 +183,26 @@ async function main() {
     modeBtn.textContent = labels[uniforms.mode];
     modeBtn.dataset.active = uniforms.mode;
     gpu.queue.writeBuffer(modeBuffer, 0, new Uint32Array([uniforms.mode]));
+  });
+
+  const radiusSlider = document.getElementById("radius-slider");
+  const radiusVal    = document.getElementById("radius-val");
+  radiusSlider.value = uniforms.radius;
+  radiusVal.textContent = uniforms.radius;
+  radiusSlider.addEventListener("input", () => {
+    uniforms.radius = parseFloat(radiusSlider.value);
+    radiusVal.textContent = uniforms.radius;
+    gpu.queue.writeBuffer(radiusBuffer, 0, new Float32Array([uniforms.radius]));
+  });
+
+  const blendSlider = document.getElementById("blend-slider");
+  const blendVal    = document.getElementById("blend-val");
+  blendSlider.value = uniforms.blendWeight;
+  blendVal.textContent = uniforms.blendWeight.toFixed(2);
+  blendSlider.addEventListener("input", () => {
+    uniforms.blendWeight = parseFloat(blendSlider.value);
+    blendVal.textContent = uniforms.blendWeight.toFixed(2);
+    gpu.queue.writeBuffer(blendWeightBuffer, 0, new Float32Array([uniforms.blendWeight]));
   });
 
   /////////////////////////
