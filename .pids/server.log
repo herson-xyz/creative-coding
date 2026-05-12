@@ -291,3 +291,11 @@
  HTTP  5/12/2026 12:15:56 PM ::1 Returned 304 in 0 ms
  HTTP  5/12/2026 12:15:56 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
  HTTP  5/12/2026 12:15:56 PM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 1:33:15 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/12/2026 1:33:15 PM ::1 Returned 200 in 5 ms
+ HTTP  5/12/2026 1:33:15 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js?v=3
+ HTTP  5/12/2026 1:33:15 PM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 1:33:15 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js?v=3
+ HTTP  5/12/2026 1:33:15 PM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 1:33:15 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
+ HTTP  5/12/2026 1:33:15 PM ::1 Returned 304 in 1 ms
