@@ -2,6 +2,14 @@
   "project": "Primordial",
   "iterations": [
     {
+      "slug": "04-predator-prey-advanced",
+      "title": "Predator / Prey — Advanced",
+      "number": 4,
+      "date": "2026-05-11",
+      "description": "Richer predator-prey dynamics: predators grow when eating, prey have a death-and-respawn lifecycle, soft vortex pressure keeps the field alive. Six tunable parameters.",
+      "artifacts": []
+    },
+    {
       "slug": "03-predator-prey",
       "title": "Predator / Prey",
       "number": 3,

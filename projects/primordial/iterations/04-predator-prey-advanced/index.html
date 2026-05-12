@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --bg:      #0e0e0e;
+      --surface: #131313;
+      --border:  #1e1e1e;
+      --text:    #ccc;
+      --muted:   #444;
+      --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      --c-pr: #c8f;   /* perception radius */
+      --c-pa: #f76;   /* predator aggression */
+      --c-pe: #6cf;   /* prey evasion */
+      --c-ps: #fa6;   /* predator speed */
+      --c-vs: #8f8;   /* prey speed */
+      --c-tp: #fd3;   /* trail persistence */
+      --c-pu: #f9c;   /* pulse period */
+      --c-ms: #7df;   /* prey max size */
+      --c-em: #ffe;   /* prey emission */
+      --c-cm: #bfb;   /* color multiplier */
+      --c-vg: #abf;   /* vignette radius */
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+      gap: 1rem;
+    }
+    #legend {
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    #sim-row {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #canvas-area canvas {
+      display: block;
+      border: 1px solid var(--border);
+    }
+
+    /* ── controls ── */
+    #controls {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      padding-top: 2px;
+    }
+    .ctrl-heading {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .ctrl-block { display: flex; flex-direction: column; gap: 0.9rem; }
+    .ctrl       { display: flex; flex-direction: column; gap: 4px; }
+    .ctrl-header { display: flex; justify-content: space-between; align-items: baseline; }
+    .ctrl-label  { font-size: 11px; color: var(--text); }
+    .ctrl-val    { font-size: 11px; font-weight: 600; min-width: 36px; text-align: right; }
+    .ctrl-hint   { font-size: 9px; color: var(--muted); line-height: 1.4; }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%; height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .pr-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-pr); }
+    .pa-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-pa); }
+    .pe-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-pe); }
+    .ps-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-ps); }
+    .vs-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-vs); }
+    .tp-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-tp); }
+    .pu-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-pu); }
+    .ms-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-ms); }
+    .em-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-em); }
+    .cm-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-cm); }
+    .vg-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-vg); }
+    .pr-ctrl .ctrl-val { color: var(--c-pr); }
+    .pa-ctrl .ctrl-val { color: var(--c-pa); }
+    .pe-ctrl .ctrl-val { color: var(--c-pe); }
+    .ps-ctrl .ctrl-val { color: var(--c-ps); }
+    .vs-ctrl .ctrl-val { color: var(--c-vs); }
+    .tp-ctrl .ctrl-val { color: var(--c-tp); }
+    .pu-ctrl .ctrl-val { color: var(--c-pu); }
+    .ms-ctrl .ctrl-val { color: var(--c-ms); }
+    .em-ctrl .ctrl-val { color: var(--c-em); }
+    .cm-ctrl .ctrl-val { color: var(--c-cm); }
+    .vg-ctrl .ctrl-val { color: var(--c-vg); }
+
+    /* ── buttons ── */
+    .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      border-radius: 3px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn:hover { color: var(--text); border-color: #444; }
+
+    /* ── code view ── */
+    .code-view {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem;
+      font-size: 10.5px;
+      line-height: 1.8;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .code-comment { color: var(--muted); }
+    .code-kw      { color: #88b4e8; }
+    .code-fn      { color: #e8c788; }
+    .code-dim     { color: #444; }
+    .code-param   { border-radius: 2px; padding: 0 2px; }
+    .code-param.pr { color: var(--c-pr); }
+    .code-param.pa { color: var(--c-pa); }
+    .code-param.pe { color: var(--c-pe); }
+    .code-param.ps { color: var(--c-ps); }
+    .code-param.vs { color: var(--c-vs); }
+    .code-param.tp { color: var(--c-tp); }
+    .code-param.pu { color: var(--c-pu); }
+    .code-param.ms { color: var(--c-ms); }
+    .code-param.em { color: var(--c-em); }
+    .code-param.cm { color: var(--c-cm); }
+    .code-param.vg { color: var(--c-vg); }
+    @keyframes paramFlash {
+      0%   { background: rgba(255,255,255,0.18); }
+      100% { background: transparent; }
+    }
+    .code-param.flash { animation: paramFlash 0.4s ease-out forwards; }
+    hr.code-div { border: none; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div id="legend">
+    <span><span class="dot" style="background:#e84"></span>predators — grow when eating</span>
+    <span><span class="dot" style="background:#933"></span>prey — respawn on death</span>
+  </div>
+
+  <div id="sim-row">
+    <div id="canvas-area"></div>
+
+    <div id="controls">
+      <span class="ctrl-heading">simulation parameters</span>
+
+      <div class="ctrl-block">
+
+        <div class="ctrl pr-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Perception Radius</span>
+            <span class="ctrl-val" id="val-pr">20</span>
+          </div>
+          <input type="range" id="sl-pr" min="2" max="100" step="1" value="20">
+          <span class="ctrl-hint">base detection range — prey at 4×, predators at 2×</span>
+        </div>
+
+        <div class="ctrl pa-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Predator Aggression</span>
+            <span class="ctrl-val" id="val-pa">0.26</span>
+          </div>
+          <input type="range" id="sl-pa" min="0" max="1.0" step="0.01" value="0.26">
+          <span class="ctrl-hint">how sharply predators accelerate toward prey</span>
+        </div>
+
+        <div class="ctrl pe-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Prey Evasion</span>
+            <span class="ctrl-val" id="val-pe">0.04</span>
+          </div>
+          <input type="range" id="sl-pe" min="0" max="0.3" step="0.005" value="0.04">
+          <span class="ctrl-hint">how sharply prey react to a predator in range</span>
+        </div>
+
+        <div class="ctrl ps-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Predator Speed</span>
+            <span class="ctrl-val" id="val-ps">0.50</span>
+          </div>
+          <input type="range" id="sl-ps" min="0.1" max="1.5" step="0.01" value="0.5">
+          <span class="ctrl-hint">hard speed cap for predators</span>
+        </div>
+
+        <div class="ctrl vs-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Prey Speed</span>
+            <span class="ctrl-val" id="val-vs">0.30</span>
+          </div>
+          <input type="range" id="sl-vs" min="0.1" max="1.5" step="0.01" value="0.3">
+          <span class="ctrl-hint">≥ predator speed collapses chase dynamics</span>
+        </div>
+
+        <div class="ctrl tp-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Trail Persistence</span>
+            <span class="ctrl-val" id="val-tp">0.95</span>
+          </div>
+          <input type="range" id="sl-tp" min="0.80" max="0.99" step="0.005" value="0.95">
+          <span class="ctrl-hint">how long agent trails linger each frame</span>
+        </div>
+
+      </div>
+
+      <span class="ctrl-heading">visual parameters</span>
+
+      <div class="ctrl-block">
+
+        <div class="ctrl pu-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Pulse Period</span>
+            <span class="ctrl-val" id="val-pu">100</span>
+          </div>
+          <input type="range" id="sl-pu" min="10" max="500" step="5" value="100">
+          <span class="ctrl-hint">frames per breathing cycle — lower = faster</span>
+        </div>
+
+        <div class="ctrl ms-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Prey Max Size</span>
+            <span class="ctrl-val" id="val-ms">8</span>
+          </div>
+          <input type="range" id="sl-ms" min="1" max="20" step="1" value="8">
+          <span class="ctrl-hint">maximum particle radius for prey agents</span>
+        </div>
+
+        <div class="ctrl em-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Prey Emission</span>
+            <span class="ctrl-val" id="val-em">0.008</span>
+          </div>
+          <input type="range" id="sl-em" min="0.001" max="0.05" step="0.001" value="0.008">
+          <span class="ctrl-hint">per-frame brightness — accumulates with trail persistence</span>
+        </div>
+
+        <div class="ctrl cm-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Color Multiplier</span>
+            <span class="ctrl-val" id="val-cm">3.0</span>
+          </div>
+          <input type="range" id="sl-cm" min="0.5" max="10.0" step="0.1" value="3.0">
+          <span class="ctrl-hint">scales prey color before emission — overall luminosity</span>
+        </div>
+
+        <div class="ctrl vg-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Vignette Radius</span>
+            <span class="ctrl-val" id="val-vg">0.89</span>
+          </div>
+          <input type="range" id="sl-vg" min="0.3" max="1.5" step="0.01" value="0.89">
+          <span class="ctrl-hint">where edge darkening begins — lower = tighter spotlight</span>
+        </div>
+
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="btn-copy-link">copy link</button>
+        <button class="btn" id="btn-reset-params">reset parameters</button>
+        <button class="btn" id="btn-reset-pos">reset positions</button>
+      </div>
+
+      <!-- Live code view -->
+      <div class="code-view">
+        <div>
+          <span class="code-comment">// predator</span><br>
+          <span class="code-kw">if</span>(d &lt; <span class="code-param pr" id="cv-pr1">20</span> × 2.0) {<br>
+          <span class="code-dim">&nbsp;&nbsp;acc += prey.xy − p;</span><br>
+          }<br>
+          v += (acc / count) × <span class="code-param pa" id="cv-pa">0.26</span>;<br>
+          v = clamp(v, <span class="code-param ps" id="cv-ps">0.50</span>);
+        </div>
+        <hr class="code-div">
+        <div>
+          <span class="code-comment">// prey</span><br>
+          <span class="code-kw">if</span>(d &lt; <span class="code-param pr" id="cv-pr2">20</span> × 4.0 × size/18) {<br>
+          <span class="code-dim">&nbsp;&nbsp;acc += (p − predator.xy) / d;</span><br>
+          }<br>
+          v += acc × <span class="code-param pe" id="cv-pe">0.04</span>;<br>
+          v = clamp(v, <span class="code-param vs" id="cv-vs">0.30</span>);
+        </div>
+        <hr class="code-div">
+        <div>
+          <span class="code-comment">// prey visual</span><br>
+          depth = <span class="code-fn">sin</span>(time / <span class="code-param pu" id="cv-pu1">100</span> + id) + 0.8;<br>
+          size = 1 + <span class="code-param ms" id="cv-ms">8</span> × f(id, time / <span class="code-param pu" id="cv-pu2">100</span>);<br>
+          color *= <span class="code-param cm" id="cv-cm">3.0</span>;<br>
+          pixels += depth × <span class="code-param em" id="cv-em">0.008</span> × color;
+        </div>
+        <hr class="code-div">
+        <div>
+          <span class="code-comment">// fade</span><br>
+          pixels × <span class="code-fn">vignette</span>(<span class="code-param vg" id="cv-vg">0.89</span>);<br>
+          pixels *= <span class="code-param tp" id="cv-tp">0.95</span>;
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+  <script>
+    function flash(el) {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+      el.classList.add('flash');
+    }
+
+    function bind(sliderId, valId, codeIds, fmt, key) {
+      document.getElementById(sliderId).addEventListener('input', function () {
+        const v = parseFloat(this.value);
+        const s = fmt(v);
+        document.getElementById(valId).textContent = s;
+        for (const id of codeIds) {
+          const el = document.getElementById(id);
+          el.textContent = s;
+          flash(el);
+        }
+        window.simParams?.update(key, v);
+      });
+    }
+
+    const DEFAULTS = [
+      { sl: 'sl-pr', val: 'val-pr', cvs: ['cv-pr1','cv-pr2'], fmt: v => String(Math.round(v)), key: 'perceptionRadius',   value: 20    },
+      { sl: 'sl-pa', val: 'val-pa', cvs: ['cv-pa'],            fmt: v => v.toFixed(2),          key: 'predatorAggression', value: 0.26  },
+      { sl: 'sl-pe', val: 'val-pe', cvs: ['cv-pe'],            fmt: v => v.toFixed(3),          key: 'preyEvasion',        value: 0.04  },
+      { sl: 'sl-ps', val: 'val-ps', cvs: ['cv-ps'],            fmt: v => v.toFixed(2),          key: 'predatorSpeed',      value: 0.5   },
+      { sl: 'sl-vs', val: 'val-vs', cvs: ['cv-vs'],            fmt: v => v.toFixed(2),          key: 'preySpeed',          value: 0.3   },
+      { sl: 'sl-tp', val: 'val-tp', cvs: ['cv-tp'],            fmt: v => v.toFixed(3),          key: 'trailPersistence',   value: 0.95  },
+      { sl: 'sl-pu', val: 'val-pu', cvs: ['cv-pu1','cv-pu2'], fmt: v => String(Math.round(v)), key: 'pulseSpeed',         value: 100   },
+      { sl: 'sl-ms', val: 'val-ms', cvs: ['cv-ms'],            fmt: v => String(Math.round(v)), key: 'preyMaxSize',        value: 8     },
+      { sl: 'sl-em', val: 'val-em', cvs: ['cv-em'],            fmt: v => v.toFixed(3),          key: 'preyEmission',       value: 0.008 },
+      { sl: 'sl-cm', val: 'val-cm', cvs: ['cv-cm'],            fmt: v => v.toFixed(1),          key: 'colorMultiplier',    value: 3.0   },
+      { sl: 'sl-vg', val: 'val-vg', cvs: ['cv-vg'],            fmt: v => v.toFixed(2),          key: 'vignetteRadius',     value: 0.89  },
+    ];
+
+    for (const d of DEFAULTS) {
+      bind(d.sl, d.val, d.cvs, d.fmt, d.key);
+    }
+
+    document.getElementById('btn-reset-params').addEventListener('click', () => {
+      for (const d of DEFAULTS) {
+        document.getElementById(d.sl).value = d.value;
+        const s = d.fmt(d.value);
+        document.getElementById(d.val).textContent = s;
+        for (const id of d.cvs) {
+          const el = document.getElementById(id);
+          el.textContent = s;
+          flash(el);
+        }
+        window.simParams?.update(d.key, d.value);
+      }
+    });
+
+    document.getElementById('btn-reset-pos').addEventListener('click', () => {
+      window.simParams?.reset();
+    });
+
+    function applyURLParams() {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.toString()) return;
+      for (const d of DEFAULTS) {
+        const urlKey = d.sl.replace('sl-', '');
+        const raw = params.get(urlKey);
+        if (raw === null) continue;
+        const v = parseFloat(raw);
+        if (isNaN(v)) continue;
+        document.getElementById(d.sl).value = v;
+        const s = d.fmt(v);
+        document.getElementById(d.val).textContent = s;
+        for (const id of d.cvs) document.getElementById(id).textContent = s;
+      }
+      function tryApplyToSim() {
+        if (!window.simParams) { requestAnimationFrame(tryApplyToSim); return; }
+        for (const d of DEFAULTS) {
+          const raw = params.get(d.sl.replace('sl-', ''));
+          if (raw === null) continue;
+          const v = parseFloat(raw);
+          if (!isNaN(v)) window.simParams.update(d.key, v);
+        }
+      }
+      tryApplyToSim();
+    }
+
+    document.getElementById('btn-copy-link').addEventListener('click', () => {
+      const params = new URLSearchParams();
+      for (const d of DEFAULTS) {
+        params.set(d.sl.replace('sl-', ''), document.getElementById(d.sl).value);
+      }
+      navigator.clipboard.writeText(`${location.origin}${location.pathname}?${params}`).then(() => {
+        const btn = document.getElementById('btn-copy-link');
+        btn.textContent = 'copied!';
+        setTimeout(() => { btn.textContent = 'copy link'; }, 1500);
+      });
+    });
+
+    applyURLParams();
+  </script>
+</body>
+</html>
