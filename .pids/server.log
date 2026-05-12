@@ -45,3 +45,249 @@
  HTTP  5/11/2026 12:40:54 PM ::1 Returned 200 in 2 ms
  HTTP  5/11/2026 12:40:56 PM ::1 GET /projects/primordial/iterations/03-predator-prey/artifacts/sign-flip/
  HTTP  5/11/2026 12:40:56 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 12:48:09 PM ::1 GET /projects/primordial/
+ HTTP  5/11/2026 12:48:09 PM ::1 Returned 304 in 3 ms
+ HTTP  5/11/2026 12:48:09 PM ::1 GET /projects/primordial/iterations.json
+ HTTP  5/11/2026 12:48:09 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 12:51:08 PM ::1 GET /projects/primordial/iterations/03-predator-prey/
+ HTTP  5/11/2026 12:51:08 PM ::1 Returned 304 in 5 ms
+ HTTP  5/11/2026 12:51:08 PM ::1 GET /projects/primordial/iterations/03-predator-prey/main.js
+ HTTP  5/11/2026 12:51:08 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 12:51:08 PM ::1 GET /projects/primordial/iterations/03-predator-prey/lib.js
+ HTTP  5/11/2026 12:51:08 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 12:51:08 PM ::1 GET /projects/primordial/iterations/03-predator-prey/agents.wgsl
+ HTTP  5/11/2026 12:51:08 PM ::1 Returned 304 in 2 ms
+ HTTP  5/11/2026 12:51:08 PM ::1 GET /favicon.ico
+ HTTP  5/11/2026 12:51:08 PM ::1 Returned 404 in 3 ms
+ HTTP  5/11/2026 12:51:49 PM ::1 GET /
+ HTTP  5/11/2026 12:51:49 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 12:51:49 PM ::1 GET /projects.json
+ HTTP  5/11/2026 12:51:49 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 12:53:37 PM ::1 GET /projects/primordial/
+ HTTP  5/11/2026 12:53:37 PM ::1 Returned 304 in 3 ms
+ HTTP  5/11/2026 12:53:37 PM ::1 GET /projects/primordial/iterations.json
+ HTTP  5/11/2026 12:53:37 PM ::1 Returned 304 in 0 ms
+ HTTP  5/11/2026 1:01:55 PM ::1 GET /projects/primordial/
+ HTTP  5/11/2026 1:01:55 PM ::1 Returned 304 in 2 ms
+ HTTP  5/11/2026 1:01:55 PM ::1 GET /projects/primordial/iterations.json
+ HTTP  5/11/2026 1:01:55 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 1:01:59 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:01:59 PM ::1 Returned 200 in 3 ms
+ HTTP  5/11/2026 1:01:59 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 1:01:59 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:01:59 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:01:59 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:01:59 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:01:59 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:02:27 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:02:27 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:02:27 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 1:02:27 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:02:27 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:02:27 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:02:27 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:02:27 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:08:16 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:08:16 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:08:23 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:08:23 PM ::1 Returned 200 in 0 ms
+ HTTP  5/11/2026 1:08:23 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:08:23 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:08:31 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:08:31 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:08:31 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 1:08:31 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:08:31 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:08:31 PM ::1 Returned 304 in 0 ms
+ HTTP  5/11/2026 1:08:31 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:08:31 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 1:08:34 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:08:34 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 1:08:34 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 1:08:34 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:08:34 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:08:34 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 1:08:34 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:08:34 PM ::1 Returned 200 in 0 ms
+ HTTP  5/11/2026 1:08:34 PM ::1 GET /favicon.ico
+ HTTP  5/11/2026 1:08:34 PM ::1 Returned 404 in 2 ms
+ HTTP  5/11/2026 1:14:43 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 1:14:43 PM ::1 Returned 304 in 3 ms
+ HTTP  5/11/2026 1:14:43 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 1:14:43 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 1:14:43 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 1:14:43 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 1:14:43 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 1:14:43 PM ::1 Returned 304 in 0 ms
+ HTTP  5/11/2026 2:16:12 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 2:16:12 PM ::1 Returned 200 in 4 ms
+ HTTP  5/11/2026 2:16:12 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 2:16:12 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 2:16:12 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 2:16:12 PM ::1 Returned 304 in 0 ms
+ HTTP  5/11/2026 2:16:12 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 2:16:12 PM ::1 Returned 200 in 2 ms
+ HTTP  5/11/2026 2:16:28 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 2:16:28 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 2:16:28 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 2:16:28 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 2:16:28 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 2:16:28 PM ::1 Returned 304 in 0 ms
+ HTTP  5/11/2026 2:16:28 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 2:16:28 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 2:23:47 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/11/2026 2:23:47 PM ::1 Returned 304 in 2 ms
+ HTTP  5/11/2026 2:23:47 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/11/2026 2:23:47 PM ::1 Returned 200 in 1 ms
+ HTTP  5/11/2026 2:23:47 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/11/2026 2:23:47 PM ::1 Returned 304 in 1 ms
+ HTTP  5/11/2026 2:23:47 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/11/2026 2:23:47 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 10:34:20 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:34:20 AM ::1 Returned 200 in 27 ms
+ HTTP  5/12/2026 10:34:20 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:34:20 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:34:20 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:34:20 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:34:21 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:34:21 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:43:57 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:43:57 AM ::1 Returned 200 in 2 ms
+ HTTP  5/12/2026 10:43:57 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:43:57 AM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 10:43:57 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:43:57 AM ::1 Returned 200 in 2 ms
+ HTTP  5/12/2026 10:43:57 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:43:57 AM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 10:47:56 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:47:56 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:47:56 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:47:56 AM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 10:47:56 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:47:56 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:47:56 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:47:56 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:48:24 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:48:24 AM ::1 Returned 304 in 2 ms
+ HTTP  5/12/2026 10:48:24 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:48:24 AM ::1 Returned 200 in 0 ms
+ HTTP  5/12/2026 10:48:24 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:48:24 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:48:24 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:48:24 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:48:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:48:37 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:48:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:48:37 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:48:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:48:37 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:48:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:48:37 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:49:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:49:13 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:49:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:49:13 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:49:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:49:13 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:49:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:49:13 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:49:18 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:49:18 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:49:18 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:49:18 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:49:18 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:49:18 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:49:18 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:49:18 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:54:48 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:54:48 AM ::1 Returned 304 in 2 ms
+ HTTP  5/12/2026 10:54:48 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:54:48 AM ::1 Returned 200 in 2 ms
+ HTTP  5/12/2026 10:54:48 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:54:48 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:54:48 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:54:48 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:56:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:56:13 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:56:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:56:13 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:56:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:56:13 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:56:13 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:56:13 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:57:01 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 10:57:01 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:57:01 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 10:57:01 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 10:57:01 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 10:57:01 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 10:57:01 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 10:57:01 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:00:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 11:00:37 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:00:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 11:00:37 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 11:00:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 11:00:37 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 11:00:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 11:00:37 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:07:07 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 11:07:07 AM ::1 Returned 304 in 3 ms
+ HTTP  5/12/2026 11:07:07 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 11:07:07 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 11:07:07 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 11:07:07 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:07:07 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 11:07:07 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:19 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 11:08:19 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:19 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 11:08:19 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:19 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 11:08:19 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 11:08:19 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 11:08:19 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:26 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/?pr=29&pa=0.00&pe=0.065&ps=0.93&vs=0.45&tp=0.800&pu=500&ms=4&em=0.045&cm=9.9&vg=1.48
+ HTTP  5/12/2026 11:08:26 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:26 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js
+ HTTP  5/12/2026 11:08:26 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:08:26 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js
+ HTTP  5/12/2026 11:08:26 AM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 11:08:26 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl
+ HTTP  5/12/2026 11:08:26 AM ::1 Returned 304 in 1 ms
+ HTTP  5/12/2026 11:53:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/12/2026 11:53:37 AM ::1 Returned 200 in 5 ms
+ HTTP  5/12/2026 11:53:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js?v=3
+ HTTP  5/12/2026 11:53:37 AM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 11:53:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js?v=3
+ HTTP  5/12/2026 11:53:37 AM ::1 Returned 200 in 0 ms
+ HTTP  5/12/2026 11:53:37 AM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
+ HTTP  5/12/2026 11:53:37 AM ::1 Returned 200 in 2 ms
+ HTTP  5/12/2026 12:12:30 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/12/2026 12:12:30 PM ::1 Returned 200 in 10 ms
+ HTTP  5/12/2026 12:12:30 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js?v=3
+ HTTP  5/12/2026 12:12:30 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 12:12:30 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js?v=3
+ HTTP  5/12/2026 12:12:30 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 12:12:30 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
+ HTTP  5/12/2026 12:12:30 PM ::1 Returned 200 in 0 ms
+ HTTP  5/12/2026 12:12:30 PM ::1 GET /favicon.ico
+ HTTP  5/12/2026 12:12:30 PM ::1 Returned 404 in 3 ms
+ HTTP  5/12/2026 12:12:33 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/12/2026 12:12:33 PM ::1 Returned 200 in 2 ms
+ HTTP  5/12/2026 12:12:33 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js?v=3
+ HTTP  5/12/2026 12:12:33 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 12:12:33 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js?v=3
+ HTTP  5/12/2026 12:12:33 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 12:12:33 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
+ HTTP  5/12/2026 12:12:33 PM ::1 Returned 200 in 0 ms
+ HTTP  5/12/2026 12:12:33 PM ::1 GET /favicon.ico
+ HTTP  5/12/2026 12:12:33 PM ::1 Returned 404 in 1 ms
+ HTTP  5/12/2026 12:15:55 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/
+ HTTP  5/12/2026 12:15:55 PM ::1 Returned 200 in 1 ms
+ HTTP  5/12/2026 12:15:56 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/main.js?v=3
+ HTTP  5/12/2026 12:15:56 PM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 12:15:56 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/lib.js?v=3
+ HTTP  5/12/2026 12:15:56 PM ::1 Returned 304 in 0 ms
+ HTTP  5/12/2026 12:15:56 PM ::1 GET /projects/primordial/iterations/04-predator-prey-advanced/agents.wgsl?v=3
+ HTTP  5/12/2026 12:15:56 PM ::1 Returned 304 in 1 ms
