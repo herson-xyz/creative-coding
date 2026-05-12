@@ -1,4 +1,4 @@
-import { createShader, render } from "./lib.js?v=2";
+import { createShader, render } from "./lib.js?v=3";
 
 const sizes = {
   f32:  4,
@@ -23,6 +23,11 @@ const uniforms = {
   preyEmission:       0.008,
   colorMultiplier:    3.0,
   vignetteRadius:     0.89,
+  // Predator growth params
+  sizeGrowth:         0.2,
+  sizeDecay:          0.995,
+  predatorMaxSize:    24,
+  predatorEmission:   0.2,
 };
 
 const settings = {
@@ -88,10 +93,14 @@ async function main() {
     preyEmission:       48,
     colorMultiplier:    52,
     vignetteRadius:     56,
+    sizeGrowth:         60,
+    sizeDecay:          64,
+    predatorMaxSize:    68,
+    predatorEmission:   72,
   };
 
   const uniformBuf = gpu.createBuffer({
-    size:  64,
+    size:  80,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
   });
   gpu.queue.writeBuffer(uniformBuf, 0, new Float32Array([
@@ -100,6 +109,7 @@ async function main() {
     uniforms.predatorSpeed, uniforms.preySpeed, uniforms.trailPersistence,
     uniforms.pulseSpeed, uniforms.preyMaxSize, uniforms.preyEmission,
     uniforms.colorMultiplier, uniforms.vignetteRadius,
+    uniforms.sizeGrowth, uniforms.sizeDecay, uniforms.predatorMaxSize, uniforms.predatorEmission,
   ]));
 
   const uniformsLayout = gpu.createBindGroupLayout({
@@ -138,7 +148,7 @@ async function main() {
     bindGroupLayouts: [pixelBufferLayout, uniformsLayout, agentsLayout],
   });
 
-  const module = await createShader(gpu, "agents.wgsl");
+  const module = await createShader(gpu, "agents.wgsl?v=3");
 
   const resetPipeline    = gpu.createComputePipeline({ layout, compute: { module, entryPoint: "reset" } });
   const predatorPipeline = gpu.createComputePipeline({ layout, compute: { module, entryPoint: "predatorSim" } });

@@ -20,6 +20,10 @@
       --c-em: #ffe;   /* prey emission */
       --c-cm: #bfb;   /* color multiplier */
       --c-vg: #abf;   /* vignette radius */
+      --c-sg: #f96;   /* size growth */
+      --c-sd: #fc9;   /* size decay */
+      --c-mx: #fc3;   /* predator max size */
+      --c-de: #f84;   /* predator emission */
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -104,6 +108,10 @@
     .em-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-em); }
     .cm-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-cm); }
     .vg-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-vg); }
+    .sg-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-sg); }
+    .sd-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-sd); }
+    .mx-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-mx); }
+    .de-ctrl input[type=range]::-webkit-slider-thumb { background: var(--c-de); }
     .pr-ctrl .ctrl-val { color: var(--c-pr); }
     .pa-ctrl .ctrl-val { color: var(--c-pa); }
     .pe-ctrl .ctrl-val { color: var(--c-pe); }
@@ -115,6 +123,10 @@
     .em-ctrl .ctrl-val { color: var(--c-em); }
     .cm-ctrl .ctrl-val { color: var(--c-cm); }
     .vg-ctrl .ctrl-val { color: var(--c-vg); }
+    .sg-ctrl .ctrl-val { color: var(--c-sg); }
+    .sd-ctrl .ctrl-val { color: var(--c-sd); }
+    .mx-ctrl .ctrl-val { color: var(--c-mx); }
+    .de-ctrl .ctrl-val { color: var(--c-de); }
 
     /* ── buttons ── */
     .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
@@ -160,6 +172,10 @@
     .code-param.em { color: var(--c-em); }
     .code-param.cm { color: var(--c-cm); }
     .code-param.vg { color: var(--c-vg); }
+    .code-param.sg { color: var(--c-sg); }
+    .code-param.sd { color: var(--c-sd); }
+    .code-param.mx { color: var(--c-mx); }
+    .code-param.de { color: var(--c-de); }
     @keyframes paramFlash {
       0%   { background: rgba(255,255,255,0.18); }
       100% { background: transparent; }
@@ -178,8 +194,8 @@
     <div id="canvas-area"></div>
 
     <div id="controls">
-      <span class="ctrl-heading">simulation parameters</span>
 
+      <span class="ctrl-heading">predator behavior</span>
       <div class="ctrl-block">
 
         <div class="ctrl pr-ctrl">
@@ -188,7 +204,7 @@
             <span class="ctrl-val" id="val-pr">20</span>
           </div>
           <input type="range" id="sl-pr" min="2" max="100" step="1" value="20">
-          <span class="ctrl-hint">base detection range — prey at 4×, predators at 2×</span>
+          <span class="ctrl-hint">base detection range — predators at 2×, prey at 4×</span>
         </div>
 
         <div class="ctrl pa-ctrl">
@@ -200,15 +216,6 @@
           <span class="ctrl-hint">how sharply predators accelerate toward prey</span>
         </div>
 
-        <div class="ctrl pe-ctrl">
-          <div class="ctrl-header">
-            <span class="ctrl-label">Prey Evasion</span>
-            <span class="ctrl-val" id="val-pe">0.04</span>
-          </div>
-          <input type="range" id="sl-pe" min="0" max="0.3" step="0.005" value="0.04">
-          <span class="ctrl-hint">how sharply prey react to a predator in range</span>
-        </div>
-
         <div class="ctrl ps-ctrl">
           <div class="ctrl-header">
             <span class="ctrl-label">Predator Speed</span>
@@ -216,6 +223,61 @@
           </div>
           <input type="range" id="sl-ps" min="0.1" max="1.5" step="0.01" value="0.5">
           <span class="ctrl-hint">hard speed cap for predators</span>
+        </div>
+
+        <div class="ctrl sg-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Size Growth</span>
+            <span class="ctrl-val" id="val-sg">0.20</span>
+          </div>
+          <input type="range" id="sl-sg" min="0.05" max="2.0" step="0.05" value="0.2">
+          <span class="ctrl-hint">radius gained per kill — stacks until max predator size</span>
+        </div>
+
+        <div class="ctrl mx-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Max Predator Size</span>
+            <span class="ctrl-val" id="val-mx">24</span>
+          </div>
+          <input type="range" id="sl-mx" min="6" max="60" step="2" value="24">
+          <span class="ctrl-hint">radius cap — also widens prey detection zone</span>
+        </div>
+
+        <div class="ctrl sd-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Size Decay</span>
+            <span class="ctrl-val" id="val-sd">0.995</span>
+          </div>
+          <input type="range" id="sl-sd" min="0.980" max="0.999" step="0.001" value="0.995">
+          <span class="ctrl-hint">per-frame shrink multiplier — 0.995 ≈ halves every 2s</span>
+        </div>
+
+      </div>
+
+      <span class="ctrl-heading">predator visual</span>
+      <div class="ctrl-block">
+
+        <div class="ctrl de-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Predator Emission</span>
+            <span class="ctrl-val" id="val-de">0.20</span>
+          </div>
+          <input type="range" id="sl-de" min="0.02" max="0.8" step="0.01" value="0.2">
+          <span class="ctrl-hint">per-frame brightness of each predator particle</span>
+        </div>
+
+      </div>
+
+      <span class="ctrl-heading">prey behavior</span>
+      <div class="ctrl-block">
+
+        <div class="ctrl pe-ctrl">
+          <div class="ctrl-header">
+            <span class="ctrl-label">Prey Evasion</span>
+            <span class="ctrl-val" id="val-pe">0.04</span>
+          </div>
+          <input type="range" id="sl-pe" min="0" max="0.3" step="0.005" value="0.04">
+          <span class="ctrl-hint">how sharply prey react to a predator in range</span>
         </div>
 
         <div class="ctrl vs-ctrl">
@@ -227,20 +289,19 @@
           <span class="ctrl-hint">≥ predator speed collapses chase dynamics</span>
         </div>
 
+      </div>
+
+      <span class="ctrl-heading">prey visual</span>
+      <div class="ctrl-block">
+
         <div class="ctrl tp-ctrl">
           <div class="ctrl-header">
             <span class="ctrl-label">Trail Persistence</span>
             <span class="ctrl-val" id="val-tp">0.95</span>
           </div>
           <input type="range" id="sl-tp" min="0.80" max="0.99" step="0.005" value="0.95">
-          <span class="ctrl-hint">how long agent trails linger each frame</span>
+          <span class="ctrl-hint">how long trails linger each frame — affects both populations</span>
         </div>
-
-      </div>
-
-      <span class="ctrl-heading">visual parameters</span>
-
-      <div class="ctrl-block">
 
         <div class="ctrl pu-ctrl">
           <div class="ctrl-header">
@@ -298,16 +359,23 @@
       <!-- Live code view -->
       <div class="code-view">
         <div>
-          <span class="code-comment">// predator</span><br>
+          <span class="code-comment">// predator behavior</span><br>
           <span class="code-kw">if</span>(d &lt; <span class="code-param pr" id="cv-pr1">20</span> × 2.0) {<br>
           <span class="code-dim">&nbsp;&nbsp;acc += prey.xy − p;</span><br>
           }<br>
           v += (acc / count) × <span class="code-param pa" id="cv-pa">0.26</span>;<br>
-          v = clamp(v, <span class="code-param ps" id="cv-ps">0.50</span>);
+          v = clamp(v, <span class="code-param ps" id="cv-ps">0.50</span>);<br>
+          <span class="code-kw">if</span>(size &lt; <span class="code-param mx" id="cv-mx">24</span>) { size += <span class="code-param sg" id="cv-sg">0.20</span>; }<br>
+          <span class="code-kw">if</span>(size &gt; 3) { size *= <span class="code-param sd" id="cv-sd">0.995</span>; }
         </div>
         <hr class="code-div">
         <div>
-          <span class="code-comment">// prey</span><br>
+          <span class="code-comment">// predator visual</span><br>
+          pixels += <span class="code-param de" id="cv-de">0.20</span> × color × (1 − l/size);
+        </div>
+        <hr class="code-div">
+        <div>
+          <span class="code-comment">// prey behavior</span><br>
           <span class="code-kw">if</span>(d &lt; <span class="code-param pr" id="cv-pr2">20</span> × 4.0 × size/18) {<br>
           <span class="code-dim">&nbsp;&nbsp;acc += (p − predator.xy) / d;</span><br>
           }<br>
@@ -332,7 +400,7 @@
     </div>
   </div>
 
-  <script type="module" src="main.js?v=2"></script>
+  <script type="module" src="main.js?v=3"></script>
   <script>
     function flash(el) {
       el.classList.remove('flash');
@@ -366,6 +434,10 @@
       { sl: 'sl-em', val: 'val-em', cvs: ['cv-em'],            fmt: v => v.toFixed(3),          key: 'preyEmission',       value: 0.008 },
       { sl: 'sl-cm', val: 'val-cm', cvs: ['cv-cm'],            fmt: v => v.toFixed(1),          key: 'colorMultiplier',    value: 3.0   },
       { sl: 'sl-vg', val: 'val-vg', cvs: ['cv-vg'],            fmt: v => v.toFixed(2),          key: 'vignetteRadius',     value: 0.89  },
+      { sl: 'sl-sg', val: 'val-sg', cvs: ['cv-sg'],            fmt: v => v.toFixed(2),          key: 'sizeGrowth',         value: 0.2   },
+      { sl: 'sl-sd', val: 'val-sd', cvs: ['cv-sd'],            fmt: v => v.toFixed(3),          key: 'sizeDecay',          value: 0.995 },
+      { sl: 'sl-mx', val: 'val-mx', cvs: ['cv-mx'],            fmt: v => String(Math.round(v)), key: 'predatorMaxSize',    value: 24    },
+      { sl: 'sl-de', val: 'val-de', cvs: ['cv-de'],            fmt: v => v.toFixed(2),          key: 'predatorEmission',   value: 0.2   },
     ];
 
     for (const d of DEFAULTS) {

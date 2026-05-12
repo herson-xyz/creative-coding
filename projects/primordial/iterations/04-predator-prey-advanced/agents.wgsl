@@ -19,6 +19,10 @@ struct Uniforms {
   preyEmission:      f32,
   colorMultiplier:   f32,
   vignetteRadius:    f32,
+  sizeGrowth:        f32,
+  sizeDecay:         f32,
+  predatorMaxSize:   f32,
+  predatorEmission:  f32,
 }
 
 @group(1) @binding(0)
@@ -91,9 +95,9 @@ fn predatorSim(@builtin(global_invocation_id) id : vec3u) {
     let pp = prey[i];
     let d  = distance(pp.xy, p);
     if(d < size) {
-      if(size < 24) {
+      if(size < u.predatorMaxSize) {
         eaten = true;
-        size += 0.2;
+        size += u.sizeGrowth;
       }
     } else if(d < u.perceptionRadius * predatorRadiusFactor) {
       count        += 1.0;
@@ -130,7 +134,7 @@ fn predatorSim(@builtin(global_invocation_id) id : vec3u) {
   p = (p + u.rez) % u.rez;
   predators[id.x] = vec4(p, v);
 
-  if(size > 3) { size *= 0.995; }
+  if(size > 3) { size *= u.sizeDecay; }
   predatorSizes[id.x] = size;
 
   var color = vec4(0.9, 0.1, 0.0, 1.0);
@@ -141,7 +145,7 @@ fn predatorSim(@builtin(global_invocation_id) id : vec3u) {
     for(var y = -sizei; y <= sizei; y++) {
       let l = length(vec2(f32(x), f32(y)));
       if(l < size) {
-        pixels[index(p + vec2(f32(x), f32(y)))] += 0.2 * (color * (1 - l / size));
+        pixels[index(p + vec2(f32(x), f32(y)))] += u.predatorEmission * (color * (1 - l / size));
       }
     }
   }
