@@ -1,4 +1,4 @@
-import { createShader, render } from "./lib.js";
+import { createShader, render } from "./lib.js?v=2";
 
 const sizes = {
   f32:  4,
