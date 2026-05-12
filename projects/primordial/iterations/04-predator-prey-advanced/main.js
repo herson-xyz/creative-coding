@@ -25,12 +25,7 @@ const uniforms = {
   vignetteRadius:     0.89,
 };
 
-const availW = window.innerWidth  - 380;
-const availH = window.innerHeight - 80;
-const scale  = Math.min(Math.min(availW, availH) / uniforms.rez, 0.9);
-
 const settings = {
-  scale,
   agentWorkGroups: 256,
 };
 
@@ -38,9 +33,25 @@ async function main() {
   const adapter = await navigator.gpu.requestAdapter();
   const gpu     = await adapter.requestDevice();
 
+  // Measure after GPU setup so the DOM is fully laid out
+  const ctrlW  = (document.getElementById('controls')?.offsetWidth ?? 300) + 24;
+  const availW = Math.max(window.innerWidth - ctrlW, window.innerWidth * 0.5);
+  const availH = Math.max(window.innerHeight - 80, 300);
+  const scale  = Math.min(Math.min(availW, availH) / uniforms.rez, 0.9);
+
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = Math.floor(uniforms.rez * settings.scale);
+  canvas.width = canvas.height = uniforms.rez;
+  canvas.style.width = canvas.style.height = `${Math.floor(uniforms.rez * scale)}px`;
   (document.getElementById("canvas-area") || document.body).appendChild(canvas);
+
+  function resizeCanvas() {
+    const ctrlW  = (document.getElementById('controls')?.offsetWidth ?? 300) + 24;
+    const availW = Math.max(window.innerWidth - ctrlW, window.innerWidth * 0.5);
+    const availH = Math.max(window.innerHeight - 80, 300);
+    const s = Math.min(Math.min(availW, availH) / uniforms.rez, 0.9);
+    canvas.style.width = canvas.style.height = `${Math.floor(uniforms.rez * s)}px`;
+  }
+  window.addEventListener('resize', resizeCanvas);
   const context = canvas.getContext("webgpu");
   const format  = "bgra8unorm";
   context.configure({ device: gpu, format, alphaMode: "premultiplied" });
