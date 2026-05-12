@@ -475,15 +475,16 @@
 
     document.getElementById('btn-reset-params').addEventListener('click', () => {
       for (const d of DEFAULTS) {
-        document.getElementById(d.sl).value = d.value;
-        const s = d.fmt(d.value);
+        const v = d.resetValue ?? d.value;
+        document.getElementById(d.sl).value = v;
+        const s = d.fmt(v);
         document.getElementById(d.val).textContent = s;
         for (const id of d.cvs) {
           const el = document.getElementById(id);
           el.textContent = s;
           flash(el);
         }
-        window.simParams?.update(d.key, d.value);
+        window.simParams?.update(d.key, v);
       }
     });
 
@@ -500,6 +501,7 @@
         if (raw === null) continue;
         const v = parseFloat(raw);
         if (isNaN(v)) continue;
+        d.resetValue = v;
         document.getElementById(d.sl).value = v;
         const s = d.fmt(v);
         document.getElementById(d.val).textContent = s;
