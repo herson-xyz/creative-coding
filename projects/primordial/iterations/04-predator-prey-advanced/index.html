@@ -76,6 +76,24 @@
       color: var(--muted);
       text-transform: uppercase;
     }
+    summary.ctrl-heading {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      padding: 2px 0;
+    }
+    summary.ctrl-heading::-webkit-details-marker { display: none; }
+    summary.ctrl-heading::after {
+      content: '▸';
+      font-size: 8px;
+      transition: transform 0.15s;
+    }
+    details[open] > summary.ctrl-heading::after { transform: rotate(90deg); }
+    details[open] > .ctrl-block  { margin-top: 0.9rem; }
+    details[open] > .code-view   { margin-top: 0.5rem; }
     .ctrl-block { display: flex; flex-direction: column; gap: 0.9rem; }
     .ctrl       { display: flex; flex-direction: column; gap: 4px; }
     .ctrl-header { display: flex; justify-content: space-between; align-items: baseline; }
@@ -195,7 +213,8 @@
 
     <div id="controls">
 
-      <span class="ctrl-heading">predator behavior</span>
+      <details>
+      <summary class="ctrl-heading">predator behavior</summary>
       <div class="ctrl-block">
 
         <div class="ctrl pr-ctrl">
@@ -253,8 +272,10 @@
         </div>
 
       </div>
+      </details>
 
-      <span class="ctrl-heading">predator visual</span>
+      <details>
+      <summary class="ctrl-heading">predator visual</summary>
       <div class="ctrl-block">
 
         <div class="ctrl de-ctrl">
@@ -267,8 +288,10 @@
         </div>
 
       </div>
+      </details>
 
-      <span class="ctrl-heading">prey behavior</span>
+      <details>
+      <summary class="ctrl-heading">prey behavior</summary>
       <div class="ctrl-block">
 
         <div class="ctrl pe-ctrl">
@@ -290,8 +313,10 @@
         </div>
 
       </div>
+      </details>
 
-      <span class="ctrl-heading">prey visual</span>
+      <details>
+      <summary class="ctrl-heading">prey visual</summary>
       <div class="ctrl-block">
 
         <div class="ctrl tp-ctrl">
@@ -349,6 +374,7 @@
         </div>
 
       </div>
+      </details>
 
       <div class="btn-row">
         <button class="btn" id="btn-copy-link">copy link</button>
@@ -357,6 +383,8 @@
       </div>
 
       <!-- Live code view -->
+      <details>
+      <summary class="ctrl-heading">code view</summary>
       <div class="code-view">
         <div>
           <span class="code-comment">// predator behavior</span><br>
@@ -397,6 +425,7 @@
           pixels *= <span class="code-param tp" id="cv-tp">0.95</span>;
         </div>
       </div>
+      </details>
     </div>
   </div>
 
