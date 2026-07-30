@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bedrock Block Intro</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; }
+    #saved-toast {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      color: #00ff88;
+      font: 13px/1.4 monospace;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 10px;
+      border-radius: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    #saved-toast.show { opacity: 1; }
+    #controls {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      color: #cde;
+      font: 12px/1.4 monospace;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px 12px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #controls label { display: flex; flex-direction: column; gap: 2px; }
+    #controls input[type="range"] { width: 180px; }
+  </style>
+</head>
+<body>
+  <div id="saved-toast"></div>
+  <div id="controls">
+    <label>Transmission (<span id="transmission-value"></span>)
+      <input type="range" id="transmission" min="0" max="1" step="0.01" value="1">
+    </label>
+    <label>Cylinder radius (<span id="radius-value"></span>)
+      <input type="range" id="radius" min="0.1" max="3" step="0.05" value="0.2">
+    </label>
+    <label>Video shape
+      <select id="shape-select">
+        <option value="sphere">Sphere</option>
+        <option value="cube">Cube</option>
+      </select>
+    </label>
+    <label>Video render side
+      <select id="side-select">
+        <option value="back">Back (hollow, see inner wall)</option>
+        <option value="front">Front (regular, solid outer surface)</option>
+      </select>
+    </label>
+    <label>Sphere texture
+      <select id="texture-select">
+        <option value="video">Video</option>
+        <option value="planet">Planet-like</option>
+      </select>
+    </label>
+    <label>Planet noise (<span id="noise-value"></span>)
+      <input type="range" id="noise" min="0" max="3" step="0.1" value="1">
+    </label>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Placeholder footage — randomly picked episode + timestamp per show, just for
+    // iterating on the motion/composition. Swap these for hand-picked clips later.
+    const CLIPS = ['clips/1-LosPicapiedra.mp4', 'clips/2-LosSupersonicos.mp4', 'clips/3-ScoobyDooandScrappyDoo.mp4'];
+
+    // Bedrock = calm/slow. Bump these up for a more energetic block (e.g. Action Wave).
+    const HELIX_RADIUS = 1.4;
+    const RISE_SPEED = 0.35;      // world units per second, upward drift
+    const ORBIT_SPEED = 0.25;     // radians per second, helix revolution
+    const SELF_SPIN_SPEED = 0.4;  // radians per second, each sphere's own rotation
+    const SPHERE_SPACING = 2.2;     // vertical distance between spheres on the helix
+    const SPHERE_RADIUS = 0.65;
+
+    const BG_COLOR = 0x05070d; // dark navy rather than flat black
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_COLOR);
+    scene.fog = new THREE.FogExp2(BG_COLOR, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    camera.position.set(0.19160214827005997, -9.481055533875015, 0.15817762706622154);
+    camera.lookAt(0.19159478846393352, 1.7634791191271823e-8, 0.1581716461316077);
+
+    // dev-only helper for iterating on framing — drag to orbit, scroll to zoom
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0.19159478846393352, 1.7634791191271823e-8, 0.1581716461316077);
+
+    // A glass core sitting exactly on the spheres' invisible orbit axis — world
+    // space, not camera-parented, since the camera is meant to sit inside it and
+    // look out through the wall, rather than the wall riding along with the view.
+    // Tall + open-ended (no end caps) so nothing blocks the view regardless of
+    // where the camera sits vertically; radius is deliberately smaller than
+    // HELIX_RADIUS so the spheres orbit outside it, visible through the glass.
+    const CORE_HEIGHT = 24;
+    const CORE_RADIUS_BASE = 1; // geometry built at radius 1; live radius is applied via scale
+
+    const coreMaterial = new THREE.MeshPhysicalMaterial({
+      transmission: 1,
+      roughness: 0.05,
+      thickness: 0.5,
+      ior: 1.5,
+      metalness: 0,
+      clearcoat: 0.3,
+      transparent: true,
+      side: THREE.DoubleSide, // visible whether the camera ends up inside or outside it
+    });
+    const coreMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(CORE_RADIUS_BASE, CORE_RADIUS_BASE, CORE_HEIGHT, 48, 1, true),
+      coreMaterial,
+    );
+    scene.add(coreMesh);
+
+    const transmissionInput = document.getElementById('transmission');
+    const transmissionValueEl = document.getElementById('transmission-value');
+    const radiusInput = document.getElementById('radius');
+    const radiusValueEl = document.getElementById('radius-value');
+
+    function updateTransmission() {
+      coreMaterial.transmission = Number(transmissionInput.value);
+      transmissionValueEl.textContent = transmissionInput.value;
+    }
+    function updateRadius() {
+      const r = Number(radiusInput.value);
+      coreMesh.scale.set(r, 1, r); // scale.y stays 1 — only radius changes, not height
+      radiusValueEl.textContent = r.toFixed(2);
+    }
+    transmissionInput.addEventListener('input', updateTransmission);
+    radiusInput.addEventListener('input', updateRadius);
+    updateTransmission();
+    updateRadius();
+
+    // dev-only guide — the invisible axis the spheres orbit around (world y-axis)
+    const axisLength = SPHERE_SPACING * CLIPS.length;
+    const axisGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, -axisLength, 0),
+      new THREE.Vector3(0, axisLength, 0),
+    ]);
+    const axisLine = new THREE.Line(axisGeometry, new THREE.LineBasicMaterial({ color: 0x00ff88 }));
+    scene.add(axisLine);
+
+    // starfield — gives the background real parallax depth as the camera orbits,
+    // and doubles as scene-setting for the solar-system motif
+    const STAR_COUNT = 3000;
+    const STAR_FIELD_RADIUS = 40;
+    const starPositions = new Float32Array(STAR_COUNT * 3);
+    for (let i = 0; i < STAR_COUNT; i++) {
+      // random point inside a sphere shell, not a cube, so density looks even from any angle
+      const r = STAR_FIELD_RADIUS * (0.4 + 0.6 * Math.random());
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starPositions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starField = new THREE.Points(
+      starGeometry,
+      new THREE.PointsMaterial({ color: 0xaabbff, size: 0.12, sizeAttenuation: true, fog: false }),
+    );
+    scene.add(starField);
+
+    // unused by the spheres (they're unlit, see below) — kept in case other
+    // elements need lighting later
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const key = new THREE.DirectionalLight(0xffffff, 0.8);
+    key.position.set(2, 3, 4);
+    scene.add(key);
+
+    // Procedural planet-like texture — layered sine bands (gas-giant style),
+    // perturbed by a swirl term whose amplitude is the "noise" control. No
+    // external noise library — good enough for a placeholder surface, drawn
+    // once per (hue, noiseAmount) combo and re-drawn when the noise slider moves.
+    function generatePlanetTexture(hue, noiseAmount) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      for (let y = 0; y < canvas.height; y++) {
+        const bandWobble = (Math.sin(y * 0.05) * 8 + Math.sin(y * 0.13 + 3) * 4) * noiseAmount;
+        for (let x = 0; x < canvas.width; x += 2) {
+          const swirl = Math.sin((x + bandWobble * 10) * 0.02 + y * 0.01) * 10 * noiseAmount;
+          const lightness = 35 + 20 * Math.sin((y + swirl) * 0.04) + 10 * Math.sin(x * 0.01 + y * 0.03) * noiseAmount;
+          ctx.fillStyle = `hsl(${hue}, 55%, ${Math.max(15, Math.min(70, lightness))}%)`;
+          ctx.fillRect(x, y, 2, 1);
+        }
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      return texture;
+    }
+
+    const noiseInput = document.getElementById('noise');
+    const noiseValueEl = document.getElementById('noise-value');
+
+    const spheres = CLIPS.map((src, i) => {
+      const video = document.createElement('video');
+      video.src = src;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.play();
+
+      const videoTexture = new THREE.VideoTexture(video);
+      const hue = (i * 137) % 360; // spread hues apart across the 3 spheres
+      const planetTexture = generatePlanetTexture(hue, Number(noiseInput.value));
+
+      // BackSide (default): only the inner wall renders, so looking at the shape
+      // from outside you're actually seeing through the near wall to the far
+      // inner wall — a hollow form with video wallpapered inside it. FrontSide
+      // is the regular look — a normal solid outer surface. Toggled below.
+      const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.BackSide });
+      const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, 48, 32);
+      const cubeGeometry = new THREE.BoxGeometry(SPHERE_RADIUS * 2, SPHERE_RADIUS * 2, SPHERE_RADIUS * 2);
+      const mesh = new THREE.Mesh(sphereGeometry, material);
+      scene.add(mesh);
+
+      return { mesh, material, sphereGeometry, cubeGeometry, videoTexture, planetTexture, hue, phase: i * SPHERE_SPACING };
+    });
+
+    const shapeSelect = document.getElementById('shape-select');
+    function updateShape() {
+      for (const { mesh, sphereGeometry, cubeGeometry } of spheres) {
+        mesh.geometry = shapeSelect.value === 'cube' ? cubeGeometry : sphereGeometry;
+      }
+    }
+    shapeSelect.addEventListener('change', updateShape);
+    updateShape();
+
+    const sideSelect = document.getElementById('side-select');
+    function updateSide() {
+      const side = sideSelect.value === 'front' ? THREE.FrontSide : THREE.BackSide;
+      for (const { material } of spheres) {
+        material.side = side;
+        material.needsUpdate = true; // side changes require a material re-compile
+      }
+    }
+    sideSelect.addEventListener('change', updateSide);
+    updateSide();
+
+    const textureSelect = document.getElementById('texture-select');
+    function updateTexture() {
+      for (const { material, videoTexture, planetTexture } of spheres) {
+        material.map = textureSelect.value === 'planet' ? planetTexture : videoTexture;
+        material.needsUpdate = true;
+      }
+    }
+    textureSelect.addEventListener('change', updateTexture);
+    updateTexture();
+
+    function updateNoise() {
+      noiseValueEl.textContent = noiseInput.value;
+      const noiseAmount = Number(noiseInput.value);
+      for (const item of spheres) {
+        item.planetTexture.dispose(); // regenerating the canvas, old GPU texture is now unused
+        item.planetTexture = generatePlanetTexture(item.hue, noiseAmount);
+        if (textureSelect.value === 'planet') {
+          item.material.map = item.planetTexture;
+          item.material.needsUpdate = true;
+        }
+      }
+    }
+    noiseInput.addEventListener('input', updateNoise);
+    updateNoise();
+
+    // Pure function of t (seconds) — no accumulated/internal state. This is what
+    // makes the scene replayable frame-by-frame later for an offline capture pass
+    // (Puppeteer steps t = frame / fps and screenshots each step) instead of only
+    // working live off requestAnimationFrame's real-time clock.
+    function render(t) {
+      const span = SPHERE_SPACING * spheres.length;
+      for (const { mesh, phase } of spheres) {
+        // vertical position loops upward, wrapping back below frame once risen
+        const y = (((t * RISE_SPEED + phase) % span) + span) % span - span / 2;
+
+        mesh.position.y = y;
+        // orbit around the invisible central y-axis (solar-system style) —
+        // centered at x=0, z=0, not offset toward/away from the camera
+        const angle = t * ORBIT_SPEED + phase;
+        mesh.position.x = Math.sin(angle) * HELIX_RADIUS;
+        mesh.position.z = Math.cos(angle) * HELIX_RADIUS;
+
+        mesh.rotation.y = t * SELF_SPIN_SPEED + phase;
+        mesh.rotation.x = t * SELF_SPIN_SPEED * 0.4;
+      }
+      renderer.render(scene, camera);
+    }
+
+    const start = performance.now();
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      render((performance.now() - start) / 1000);
+    }
+    animate();
+
+    // Right-click the canvas to save the current camera state (position + orbit
+    // target) instead of opening the browser context menu. Saved views persist
+    // in localStorage and are logged to the console as JSON for easy copy-paste
+    // into the final render setup.
+    const STORAGE_KEY = 'bedrock-camera-views';
+    const toast = document.getElementById('saved-toast');
+    let toastTimeout;
+
+    renderer.domElement.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+
+      const view = {
+        position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
+        savedAt: new Date().toISOString(),
+      };
+
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      saved.push(view);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+
+      console.log(`Saved camera view #${saved.length}`, view);
+      console.log('All saved views:', saved);
+
+      toast.textContent = `Saved view #${saved.length} — see console for JSON`;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>

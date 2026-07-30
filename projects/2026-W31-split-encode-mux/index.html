@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Split Encode/Mux</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0d12; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: -apple-system, 'Helvetica Neue', sans-serif; }
+    canvas { cursor: default; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+  <script>
+    // Resolve's playback-engine mechanism, Generation 4d (split encode/mux).
+    // Two panels run the SAME schedule at the SAME clock. Only the wiring
+    // downstream of the per-item ffmpeg encoder differs between them.
+
+    const SCHEDULE = [
+      { type: 'bumper',     dur: 2.2 },
+      { type: 'episode',    dur: 6.5 },
+      { type: 'bumper',     dur: 1.6 },
+      { type: 'commercial', dur: 2.0 },
+      { type: 'bumper',     dur: 1.6 },
+      { type: 'short',      dur: 3.2 },
+      { type: 'bumper',     dur: 2.2 },
+      { type: 'episode',    dur: 5.5 },
+      { type: 'bumper',     dur: 1.6 },
+      { type: 'commercial', dur: 2.0 },
+    ];
+
+    const TYPE_COLOR = {
+      bumper:     '#f5a623',
+      episode:    '#4a90d9',
+      commercial: '#c060e0',
+      short:      '#34c77b',
+    };
+    const TYPE_LABEL = {
+      bumper: 'BUMPER', episode: 'EPISODE', commercial: 'COMMERCIAL', short: 'SHORT',
+    };
+    const DANGER  = '#e94b4b';
+    const INFRA   = '#22d3ee';
+    const OK      = '#34d399';
+    const DIM     = '#5a6472';
+
+    const WINDOW_SEC = 11;      // seconds visible in ticker + ribbons
+    const RIBBON_STEP = 0.045;  // seconds per ribbon bar
+    const REWIND_DUR = 0.9;     // how long panel A's rewind sweep plays
+    const MUX_RECOVER = 1.4;    // slowed-down stand-in for the real ~20ms recovery
+
+    let idx = 0, elapsed = 0;
+    let pidA = genPID(), pidB = genPID();
+    let flashA = 0, flashB = 0;     // seconds remaining of transition flash on encoder boxes
+    let rewindA = 0;                // seconds remaining of panel-A rewind sweep
+
+    let muxerAlive = true, muxerDeadT = 0;
+    let streamClockB = 0;           // cumulativeStreamSeconds: the one thing that must never reset
+
+    let stepAccA = 0, stepAccB = 0;
+    let ribbonA = [], ribbonB = [];
+    let ptsHistA = [], ptsHistB = [];
+    let ptsAcc = 0;
+
+    let killBtn = { x: 0, y: 0, w: 0, h: 0 };
+
+    function genPID() { return Math.floor(1000 + Math.random() * 90000); }
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      textFont('Menlo, monospace');
+    }
+
+    function currentColor() { return TYPE_COLOR[SCHEDULE[idx].type]; }
+
+    function onTransition() {
+      idx = (idx + 1) % SCHEDULE.length;
+      elapsed = 0;
+      pidA = genPID(); pidB = genPID();
+      flashA = 0.35; flashB = 0.35;
+      rewindA = REWIND_DUR;
+    }
+
+    function updateSim(dt) {
+      elapsed += dt;
+      if (elapsed >= SCHEDULE[idx].dur) onTransition();
+
+      if (flashA > 0) flashA = max(0, flashA - dt);
+      if (flashB > 0) flashB = max(0, flashB - dt);
+      if (rewindA > 0) rewindA = max(0, rewindA - dt);
+
+      if (muxerAlive) {
+        streamClockB += dt;
+      } else {
+        muxerDeadT += dt;
+        if (muxerDeadT >= MUX_RECOVER) { muxerAlive = true; muxerDeadT = 0; }
+      }
+
+      // Ribbon A pauses while "re-parsing" — the visible stutter/loop-back.
+      stepAccA += dt;
+      if (rewindA <= 0) {
+        while (stepAccA >= RIBBON_STEP) {
+          ribbonA.push(currentColor());
+          stepAccA -= RIBBON_STEP;
+        }
+      } else {
+        stepAccA = min(stepAccA, RIBBON_STEP);
+      }
+      const maxBars = ceil(WINDOW_SEC / RIBBON_STEP);
+      if (ribbonA.length > maxBars) ribbonA.splice(0, ribbonA.length - maxBars);
+
+      // Ribbon B never pauses on item transitions — only on a killed muxer.
+      stepAccB += dt;
+      while (stepAccB >= RIBBON_STEP) {
+        ribbonB.push(muxerAlive ? currentColor() : '#3a1414');
+        stepAccB -= RIBBON_STEP;
+      }
+      if (ribbonB.length > maxBars) ribbonB.splice(0, ribbonB.length - maxBars);
+
+      ptsAcc += dt;
+      if (ptsAcc >= 0.06) {
+        ptsAcc = 0;
+        ptsHistA.push(elapsed);
+        ptsHistB.push(streamClockB);
+        const maxPts = 160;
+        if (ptsHistA.length > maxPts) ptsHistA.shift();
+        if (ptsHistB.length > maxPts) ptsHistB.shift();
+      }
+    }
+
+    function draw() {
+      background('#0a0d12');
+      const dt = min(deltaTime / 1000, 0.05);
+      updateSim(dt);
+
+      const marginX = max(24, windowWidth * 0.04);
+      const w = windowWidth - marginX * 2;
+      let y = 22;
+
+      y = drawHeader(marginX, y, w);
+      y += 10;
+      y = drawTicker(marginX, y, w);
+      y += 16;
+
+      const panelH = min(210, (windowHeight - y - 130) / 2);
+      y = drawPanelA(marginX, y, w, panelH);
+      y += 14;
+      y = drawPanelB(marginX, y, w, panelH);
+      y += 14;
+
+      drawFooter(marginX, y, w);
+    }
+
+    function drawHeader(x, y, w) {
+      noStroke();
+      fill('#e8ecf1');
+      textSize(19);
+      textStyle(BOLD);
+      textAlign(LEFT, TOP);
+      text('Split Encode/Mux — Resolve’s playback engine, Gen 4d', x, y);
+      textStyle(NORMAL);
+      fill(DIM);
+      textSize(12.5);
+      text('Same schedule, same clock, two ways to wire it downstream of the per-item ffmpeg encoder.', x, y + 24);
+      return y + 44;
+    }
+
+    function drawTicker(x, y, w) {
+      const h = 34;
+      const playheadX = x + w * 0.22;
+      const pxPerSec = w / WINDOW_SEC;
+
+      noStroke();
+      fill('#12161d');
+      rect(x, y, w, h, 4);
+
+      let cursor = -elapsed;
+      let i = idx;
+      let guard = 0;
+      while (cursor < WINDOW_SEC - (playheadX - x) / pxPerSec && guard < 40) {
+        const dur = SCHEDULE[i].dur;
+        drawTickBlock(playheadX + cursor * pxPerSec, y, dur * pxPerSec, h, SCHEDULE[i].type, i === idx);
+        cursor += dur;
+        i = (i + 1) % SCHEDULE.length;
+        guard++;
+      }
+
+      let prevI = (idx - 1 + SCHEDULE.length) % SCHEDULE.length;
+      let prevStart = -elapsed - SCHEDULE[prevI].dur;
+      drawTickBlock(playheadX + prevStart * pxPerSec, y, SCHEDULE[prevI].dur * pxPerSec, h, SCHEDULE[prevI].type, false);
+
+      stroke('#e8ecf1');
+      strokeWeight(2);
+      line(playheadX, y - 4, playheadX, y + h + 4);
+      noStroke();
+      fill('#e8ecf1');
+      textSize(10);
+      textAlign(CENTER, TOP);
+      text('NOW', playheadX, y + h + 6);
+
+      return y + h + 20;
+    }
+
+    function drawTickBlock(bx, by, bw, bh, type, isCurrent) {
+      const bxClamped = bx;
+      noStroke();
+      fill(TYPE_COLOR[type]);
+      rect(bxClamped, by + 3, max(1, bw - 2), bh - 6, 2);
+      if (isCurrent) {
+        stroke('#ffffff');
+        strokeWeight(1.5);
+        noFill();
+        rect(bxClamped, by + 3, max(1, bw - 2), bh - 6, 2);
+        noStroke();
+      }
+      if (bw > 46) {
+        fill('#0a0d12');
+        textSize(9.5);
+        textAlign(CENTER, CENTER);
+        text(TYPE_LABEL[type], bxClamped + bw / 2, by + bh / 2 + 1);
+      }
+    }
+
+    function drawPanelA(x, y, w, h) {
+      panelFrame(x, y, w, h, 'GEN 2 — MVP (2026-07-26)  ·  encode + mux fused, one process per item', DIM);
+
+      const boxW = 180, boxH = h - 70;
+      const boxX = x + 20, boxY = y + 40;
+      drawProcessBox(boxX, boxY, boxW, boxH, {
+        title: 'ffmpeg',
+        sub: 'encode + -f hls (fused)',
+        pid: pidA,
+        pts: elapsed.toFixed(2),
+        color: currentColor(),
+        flash: flashA,
+        persistent: false,
+      });
+
+      arrowDown(boxX + boxW / 2, boxY + boxH, boxX + boxW / 2, boxY + boxH + 14);
+
+      const ribbonX = boxX + boxW + 50;
+      const ribbonY = boxY;
+      const ribbonW = x + w - 20 - ribbonX;
+      const ribbonH = boxH * 0.55;
+
+      stroke(DIM); strokeWeight(1);
+      line(boxX + boxW, boxY + boxH / 2, ribbonX, ribbonY + ribbonH / 2);
+      noStroke();
+
+      drawRibbon(ribbonX, ribbonY, ribbonW, ribbonH, ribbonA, rewindA > 0);
+
+      fill(rewindA > 0 ? DANGER : DIM);
+      textSize(11);
+      textAlign(LEFT, TOP);
+      if (rewindA > 0) {
+        text('⚠ #EXT-X-DISCONTINUITY → mpv re-parses ~45s it already played', ribbonX, ribbonY + ribbonH + 10);
+      } else {
+        text('HLS output (what the TV actually receives)', ribbonX, ribbonY + ribbonH + 10);
+      }
+
+      drawPtsGraph(ribbonX, ribbonY + ribbonH + 30, ribbonW, 26, ptsHistA, false);
+      fill(DIM); textSize(9.5); textAlign(LEFT, TOP);
+      text('output PTS — resets to 0 every item (sawtooth)', ribbonX, ribbonY + ribbonH + 30 + 26 + 3);
+
+      return y + h;
+    }
+
+    function drawPanelB(x, y, w, h) {
+      panelFrame(x, y, w, h, 'GEN 4D — SPLIT ENCODE/MUX (current, 2026-07-30)  ·  N encoders → 1 never-restarted muxer', OK);
+
+      const boxW = 150, boxH = h - 70;
+      const boxX = x + 20, boxY = y + 40;
+      drawProcessBox(boxX, boxY, boxW, boxH, {
+        title: 'ffmpeg',
+        sub: 'encode only → FIFO',
+        pid: pidB,
+        pts: elapsed.toFixed(2),
+        color: currentColor(),
+        flash: flashB,
+        persistent: false,
+      });
+
+      const pipeX = boxX + boxW + 14;
+      const pipeY = boxY + boxH / 2 - 8;
+      drawPipe(pipeX, pipeY, 34, 16);
+
+      const muxX = pipeX + 46, muxY = boxY;
+      const muxW = 140;
+      drawProcessBox(muxX, muxY, muxW, boxH, {
+        title: 'ffmpeg',
+        sub: muxerAlive ? '-f hls mux (persistent)' : 'DEAD — recovering…',
+        pid: muxerAlive ? 'stable' : '—',
+        pts: streamClockB.toFixed(2),
+        color: muxerAlive ? INFRA : DANGER,
+        flash: 0,
+        persistent: true,
+        uptime: muxerAlive ? streamClockB : null,
+      });
+
+      killBtn.w = 118; killBtn.h = 22;
+      killBtn.x = muxX + muxW / 2 - killBtn.w / 2;
+      killBtn.y = muxY + boxH + 8;
+      const hover = mouseX > killBtn.x && mouseX < killBtn.x + killBtn.w &&
+                    mouseY > killBtn.y && mouseY < killBtn.y + killBtn.h;
+      noStroke();
+      fill(muxerAlive ? (hover ? DANGER : '#5a2020') : DIM);
+      rect(killBtn.x, killBtn.y, killBtn.w, killBtn.h, 4);
+      fill(muxerAlive ? '#f5d0d0' : '#8a94a2');
+      textSize(10.5);
+      textAlign(CENTER, CENTER);
+      text(muxerAlive ? 'SIGKILL muxer' : 'recovering…', killBtn.x + killBtn.w / 2, killBtn.y + killBtn.h / 2 + 1);
+
+      arrowDown(muxX + muxW / 2, muxY + boxH, muxX + muxW / 2, muxY + boxH + 14);
+
+      const ribbonX = muxX + muxW + 40;
+      const ribbonY = boxY;
+      const ribbonW = x + w - 20 - ribbonX;
+      const ribbonH = boxH * 0.55;
+      if (ribbonW > 30) {
+        stroke(DIM); strokeWeight(1);
+        line(muxX + muxW, muxY + boxH / 2, ribbonX, ribbonY + ribbonH / 2);
+        noStroke();
+
+        drawRibbon(ribbonX, ribbonY, ribbonW, ribbonH, ribbonB, false);
+
+        fill(muxerAlive ? DIM : DANGER);
+        textSize(11);
+        textAlign(LEFT, TOP);
+        text(muxerAlive ? 'HLS output — continuous, zero discontinuity tags' : '⚠ STREAM DOWN — whole channel dark, not just one item', ribbonX, ribbonY + ribbonH + 10);
+
+        drawPtsGraph(ribbonX, ribbonY + ribbonH + 30, ribbonW, 26, ptsHistB, true);
+        fill(DIM); textSize(9.5); textAlign(LEFT, TOP);
+        text('output PTS — cumulativeStreamSeconds, monotonic (flat = down, not reset)', ribbonX, ribbonY + ribbonH + 30 + 26 + 3);
+      }
+
+      return y + h;
+    }
+
+    function panelFrame(x, y, w, h, label, accent) {
+      noStroke();
+      fill('#10141a');
+      rect(x, y, w, h, 6);
+      fill(accent);
+      textSize(11);
+      textStyle(BOLD);
+      textAlign(LEFT, TOP);
+      text(label, x + 20, y + 10);
+      textStyle(NORMAL);
+    }
+
+    function drawProcessBox(bx, by, bw, bh, opt) {
+      const flashMix = opt.flash > 0 ? opt.flash / 0.35 : 0;
+      noStroke();
+      if (opt.persistent) {
+        fill(lerpColor(color('#0d2b30'), color(opt.color), 0.4));
+      } else {
+        fill(lerpColor(color('#1a1f28'), color('#ffffff'), flashMix * 0.5));
+      }
+      rect(bx, by, bw, bh, 6);
+
+      stroke(opt.persistent ? opt.color : lerpColor(color(opt.color), color('#ffffff'), flashMix));
+      strokeWeight(opt.persistent ? 2 : 1.5);
+      noFill();
+      rect(bx, by, bw, bh, 6);
+      noStroke();
+
+      fill('#e8ecf1');
+      textAlign(CENTER, TOP);
+      textSize(12.5);
+      textStyle(BOLD);
+      text(opt.title, bx + bw / 2, by + 10);
+      textStyle(NORMAL);
+      fill(DIM);
+      textSize(9.5);
+      text(opt.sub, bx + bw / 2, by + 27);
+
+      fill(opt.color);
+      textSize(9.5);
+      textAlign(CENTER, TOP);
+      text('pid ' + opt.pid, bx + bw / 2, by + bh - 40);
+      fill('#e8ecf1');
+      textSize(13);
+      textStyle(BOLD);
+      text(opt.pts + 's', bx + bw / 2, by + bh - 26);
+      textStyle(NORMAL);
+      fill(DIM);
+      textSize(8.5);
+      text(opt.persistent ? 'uptime' : 'local pts', bx + bw / 2, by + bh - 12);
+    }
+
+    function drawPipe(x, y, w, h) {
+      stroke(INFRA); strokeWeight(2);
+      noFill();
+      rect(x, y, w, h, h / 2);
+      noStroke();
+      const t = (millis() / 400) % 1;
+      fill(INFRA);
+      const dotX = x + 3 + t * (w - 6);
+      circle(dotX, y + h / 2, 4);
+      fill(DIM); textSize(8); textAlign(CENTER, TOP);
+      text('FIFO', x + w / 2, y + h + 4);
+    }
+
+    function drawRibbon(x, y, w, h, buf, warn) {
+      noStroke();
+      fill('#050708');
+      rect(x, y, w, h, 3);
+      const barW = w / (WINDOW_SEC / RIBBON_STEP);
+      const n = buf.length;
+      for (let k = 0; k < n; k++) {
+        const bx = x + w - (n - k) * barW;
+        if (bx + barW < x) continue;
+        fill(buf[k]);
+        rect(bx, y + 2, max(1, barW - 0.4), h - 4);
+      }
+      if (warn) {
+        const sweep = (sin(frameCount * 0.4) * 0.5 + 0.5);
+        fill(255, 60, 60, 60 + sweep * 90);
+        rect(x + w - 46, y, 46, h);
+      }
+      noFill(); stroke(DIM); strokeWeight(1);
+      rect(x, y, w, h, 3);
+      noStroke();
+    }
+
+    function drawPtsGraph(x, y, w, h, hist, monotonic) {
+      noStroke();
+      fill('#050708');
+      rect(x, y, w, h);
+      if (hist.length < 2) return;
+      const mx = max(1, ...hist);
+      stroke(monotonic ? INFRA : DIM);
+      strokeWeight(1.3);
+      noFill();
+      beginShape();
+      for (let k = 0; k < hist.length; k++) {
+        const px = x + (k / (hist.length - 1)) * w;
+        const py = y + h - (hist[k] / mx) * (h - 4) - 2;
+        vertex(px, py);
+      }
+      endShape();
+      noStroke();
+    }
+
+    function arrowDown(x1, y1, x2, y2) {
+      stroke(DIM); strokeWeight(1.5);
+      line(x1, y1, x2, y2);
+      noStroke();
+      fill(DIM);
+      triangle(x2 - 3, y2 - 4, x2 + 3, y2 - 4, x2, y2 + 2);
+    }
+
+    function drawFooter(x, y, w) {
+      fill(DIM);
+      textSize(10.5);
+      textAlign(LEFT, TOP);
+      const lines = [
+        'ffmpeg’s HLS muxer stamps #EXT-X-DISCONTINUITY on every fresh -f hls process — unconditionally, no flag avoids it. mpv reacts by re-parsing its whole segment window.',
+        'Gen 4d’s fix: keep N per-item encoders (full isolation, per-file flexibility) but route raw MPEG-TS through a shared pipe into ONE muxer that starts once and is never restarted.',
+        'Click “SIGKILL muxer” to see the one real cost: the muxer is now a single point of failure for the whole stream, not just one item — same test run live on 2026-07-30 (~20ms recovery).',
+      ];
+      for (let i = 0; i < lines.length; i++) {
+        text(lines[i], x, y + i * 15);
+      }
+    }
+
+    function mousePressed() {
+      if (muxerAlive && mouseX > killBtn.x && mouseX < killBtn.x + killBtn.w &&
+          mouseY > killBtn.y && mouseY < killBtn.y + killBtn.h) {
+        muxerAlive = false;
+        muxerDeadT = 0;
+      }
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
+  </script>
+</body>
+</html>

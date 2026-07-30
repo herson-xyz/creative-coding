@@ -1,6 +1,30 @@
 {
   "projects": [
     {
+      "slug": "2026-W31-split-encode-mux",
+      "title": "Split Encode/Mux",
+      "week": "2026-W31",
+      "date": "2026-07-30",
+      "type": "p5",
+      "description": "Two panels, one schedule: why Resolve's playback daemon routes N per-item ffmpeg encoders through a single never-restarted muxer instead of letting each one mux its own HLS segment."
+    },
+    {
+      "slug": "2026-W30-moebius-spaceship-terrain",
+      "title": "Moebius Spaceship Terrain",
+      "week": "2026-W30",
+      "date": "2026-07-21",
+      "type": "three",
+      "description": ""
+    },
+    {
+      "slug": "2026-W30-bedrock-block-intro",
+      "title": "Bedrock Block Intro",
+      "week": "2026-W30",
+      "date": "2026-07-20",
+      "type": "three",
+      "description": ""
+    },
+    {
       "slug": "primordial",
       "title": "Primordial",
       "week": "2026-W19",

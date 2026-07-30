@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Moebius Spaceship Terrain</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; }
+    #saved-toast {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      color: #ffcc88;
+      font: 13px/1.4 monospace;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 10px;
+      border-radius: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    #saved-toast.show { opacity: 1; }
+    #controls {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      color: #442e1a;
+      font: 12px/1.4 monospace;
+      background: rgba(255, 245, 230, 0.85);
+      padding: 10px 12px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #controls label { display: flex; flex-direction: column; gap: 2px; }
+    #controls input[type="range"] { width: 180px; }
+    #controls button {
+      font: 12px/1.4 monospace;
+      padding: 5px 8px;
+      border-radius: 4px;
+      border: 1px solid #a6845c;
+      background: #fff5e6;
+      color: #442e1a;
+      cursor: pointer;
+    }
+    #controls hr { width: 100%; border: none; border-top: 1px solid #a6845c66; margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <div id="saved-toast"></div>
+  <div id="controls">
+    <label style="flex-direction: row; align-items: center; gap: 6px;">
+      <input type="checkbox" id="moebius-toggle" checked>
+      Moebius post-processing
+    </label>
+    <hr>
+    <label>Outline thickness (<span id="outline-thickness-value"></span>)
+      <input type="range" id="outline-thickness" min="0.5" max="5" step="0.1" value="0.7">
+    </label>
+    <label>Wiggle frequency (<span id="wiggle-frequency-value"></span>)
+      <input type="range" id="wiggle-frequency" min="0" max="0.3" step="0.005" value="0.005">
+    </label>
+    <label>Wiggle amplitude (<span id="wiggle-amplitude-value"></span>)
+      <input type="range" id="wiggle-amplitude" min="0" max="10" step="0.1" value="2.7">
+    </label>
+    <label>Outline sensitivity (<span id="outline-threshold-value"></span>)
+      <input type="range" id="outline-threshold" min="0" max="0.5" step="0.01" value="0.03">
+    </label>
+    <hr>
+    <label>Shadow threshold 1 — diagonal (<span id="shadow-threshold-1-value"></span>)
+      <input type="range" id="shadow-threshold-1" min="0" max="1" step="0.01" value="0.00">
+    </label>
+    <label>Shadow threshold 2 — vertical (<span id="shadow-threshold-2-value"></span>)
+      <input type="range" id="shadow-threshold-2" min="0" max="1" step="0.01" value="0.00">
+    </label>
+    <label>Shadow threshold 3 — horizontal (<span id="shadow-threshold-3-value"></span>)
+      <input type="range" id="shadow-threshold-3" min="0" max="1" step="0.01" value="1.00">
+    </label>
+    <label>Shadow stripe spacing (<span id="stripe-spacing-value"></span>)
+      <input type="range" id="stripe-spacing" min="2" max="20" step="1" value="20">
+    </label>
+    <hr>
+    <label>Dune frequency (<span id="noise-scale-value"></span>)
+      <input type="range" id="noise-scale" min="0.01" max="0.2" step="0.005" value="0.075">
+    </label>
+    <label>Dune height (<span id="noise-height-value"></span>)
+      <input type="range" id="noise-height" min="0" max="6" step="0.1" value="1.6">
+    </label>
+    <p style="max-width:200px; opacity:0.8; margin:0;">Click and drag a planet/moon in the scene to reposition it.</p>
+    <hr>
+    <button id="record-clip">Record 10s clip</button>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DragControls } from 'three/addons/controls/DragControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+
+    // Scene reference: https://blog.maximeheckel.com/posts/moebius-style-post-processing/
+    // A spaceship hovering (mostly static) over noise-displaced dunes that scroll
+    // underneath it to fake forward motion, with planets looming near the horizon.
+    // This is the pre-post-processing "set up the stage" pass — no Sobel outlines,
+    // crosshatch shadows, or hand-drawn wobble yet; that's a separate later layer.
+
+    const CLIPS = ['clips/1-LosPicapiedra.mp4', 'clips/2-LosSupersonicos.mp4', 'clips/3-ScoobyDooandScrappyDoo.mp4'];
+
+    const TERRAIN_SIZE = 80;
+    const TERRAIN_SEGMENTS = 200;
+    const NOISE_SCALE = 0.075;   // dune frequency
+    const NOISE_HEIGHT = 1.6;    // dune amplitude
+    const SCROLL_SPEED = 1.2;    // how fast the dune field flows past
+
+    // Shared between the real ground material (below) and GroundNormalMaterial
+    // (used by the Moebius post-processing pass to capture correctly-displaced
+    // normals) — both need the exact same dune-noise math, so it's defined once.
+    // Expects uTime/uNoiseScale/uNoiseHeight uniforms to already be declared
+    // wherever this is spliced in.
+    const TERRAIN_NOISE_GLSL = `
+      // Ashima Arts / Ian McEwan classic simplex noise (public domain / MIT,
+      // https://github.com/ashima/webgl-noise) — standard, widely-used snippet.
+      vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+      vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);}
+      vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+      float snoise(vec3 v){
+        const vec2 C=vec2(1.0/6.0,1.0/3.0);
+        const vec4 D=vec4(0.0,0.5,1.0,2.0);
+        vec3 i=floor(v+dot(v,C.yyy));
+        vec3 x0=v-i+dot(i,C.xxx);
+        vec3 g=step(x0.yzx,x0.xyz);
+        vec3 l=1.0-g;
+        vec3 i1=min(g.xyz,l.zxy);
+        vec3 i2=max(g.xyz,l.zxy);
+        vec3 x1=x0-i1+C.xxx;
+        vec3 x2=x0-i2+C.yyy;
+        vec3 x3=x0-D.yyy;
+        i=mod289(i);
+        vec4 p=permute(permute(permute(
+               i.z+vec4(0.0,i1.z,i2.z,1.0))
+             + i.y+vec4(0.0,i1.y,i2.y,1.0))
+             + i.x+vec4(0.0,i1.x,i2.x,1.0));
+        float n_=0.142857142857;
+        vec3 ns=n_*D.wyz-D.xzx;
+        vec4 j=p-49.0*floor(p*ns.z*ns.z);
+        vec4 x_=floor(j*ns.z);
+        vec4 y_=floor(j-7.0*x_);
+        vec4 x=x_*ns.x+ns.yyyy;
+        vec4 y=y_*ns.x+ns.yyyy;
+        vec4 h=1.0-abs(x)-abs(y);
+        vec4 b0=vec4(x.xy,y.xy);
+        vec4 b1=vec4(x.zw,y.zw);
+        vec4 s0=floor(b0)*2.0+1.0;
+        vec4 s1=floor(b1)*2.0+1.0;
+        vec4 sh=-step(h,vec4(0.0));
+        vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
+        vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+        vec3 p0=vec3(a0.xy,h.x);
+        vec3 p1=vec3(a0.zw,h.y);
+        vec3 p2=vec3(a1.xy,h.z);
+        vec3 p3=vec3(a1.zw,h.w);
+        vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+        p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+        vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
+        m=m*m;
+        return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+      }
+
+      float terrainHeight(vec2 p) {
+        // uScrollDirection is a unit vector in the ground's own local XY
+        // space (set from JS each frame as the opposite of wherever the
+        // ship is currently facing, in world space, converted into this
+        // local space) — scrolling the noise sample along it is what makes
+        // the dunes appear to flow away from the ship's nose.
+        vec2 scrolled = p + uTime * ${SCROLL_SPEED.toFixed(4)} * uScrollDirection;
+        return snoise(vec3(scrolled.x * uNoiseScale, scrolled.y * uNoiseScale, 0.0)) * uNoiseHeight;
+      }
+    `;
+
+    // uNoiseScale/uNoiseHeight are real GLSL uniforms (not baked-in constants),
+    // specifically so the controls panel can adjust them live with zero shader
+    // recompile — just a value write, same as uTime already was. Declared
+    // early (rather than down by the ground material) since the Moebius
+    // post-processing setup's groundNormalMaterial also needs to share it.
+    const groundUniforms = {
+      uTime: { value: 0 },
+      uNoiseScale: { value: NOISE_SCALE },
+      uNoiseHeight: { value: NOISE_HEIGHT },
+      // Updated every frame in render() from the ship's current facing
+      // direction — defaults to (0,1), the original fixed scroll axis.
+      uScrollDirection: { value: new THREE.Vector2(0, 1) },
+    };
+
+    const SKY_COLOR = 0x6fb8e0;   // sky blue
+    const FOG_COLOR = 0x6fb8e0;
+    const FOG_NEAR = 20;
+    const FOG_FAR = 90;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(SKY_COLOR);
+    scene.fog = new THREE.Fog(FOG_COLOR, FOG_NEAR, FOG_FAR);
+
+    const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Manually driven (see render() below) — the Moebius pipeline calls
+    // renderer.render() 3x per frame (depth, normal, composer's RenderPass),
+    // and auto-update would otherwise recompute the shadow map 3 separate
+    // times per frame for no benefit.
+    renderer.shadowMap.autoUpdate = false;
+    // ACES Filmic compresses the sun's HDR-range lighting into a nicer
+    // displayable curve — without it, physically-lit PBR materials (the
+    // ship) read flatter/dimmer than intended. Only affects the main
+    // RenderPass (built-in materials) — the depth/normal buffers and
+    // MoebiusPass's own shader don't include the tonemapping chunk, so
+    // they're correctly unaffected (we don't want a tone curve corrupting
+    // encoded normal/depth data).
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    document.body.appendChild(renderer.domElement);
+
+    // Environment map — the ship's hull/engine materials are fully metallic
+    // (metalFactor: 1, confirmed straight from the GLTF), and metallic PBR
+    // surfaces render almost entirely from environment reflections rather
+    // than direct light. With none set, they were reflecting essentially
+    // nothing and reading as flat/dark. RoomEnvironment is Three's built-in
+    // synthetic studio-like environment — no external HDRI file needed.
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // Chase-cam framing: behind and above the ship, looking forward over the dunes.
+    camera.position.set(1.1513911199220053, 4.141836391607157, 7.896045719193631);
+    camera.lookAt(-0.32476292967293197, 1.422796814248044, -5.152082421536412);
+
+    // dev-only helper for iterating on framing — drag to orbit, scroll to zoom
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(-0.32476292967293197, 1.422796814248044, -5.152082421536412);
+
+    // ------------------------------------------------------------------
+    // Lighting — a single strong "sun" (directional, casts shadows) plus a
+    // soft sky/ground fill so shadowed faces aren't pure black.
+    // ------------------------------------------------------------------
+    const sun = new THREE.DirectionalLight(0xfff2e0, 3);
+    sun.position.set(15, 20, 10);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
+    sun.shadow.camera.far = 80;
+    scene.add(sun);
+    scene.add(new THREE.HemisphereLight(0xd9a875, 0x3a2a1a, 0.8));
+
+    // ==============================================================
+    // Moebius-style post-processing
+    // https://blog.maximeheckel.com/posts/moebius-style-post-processing/
+    //
+    // Pipeline per frame: render Depth + Normal buffers of the scene into
+    // side render targets, then a single custom EffectComposer pass reads
+    // the normal (lit) render + those two buffers and combines:
+    //   1. A Sobel edge-detection filter on both buffers (depth catches
+    //      outer silhouettes, normals catch inner/sharp-corner edges).
+    //   2. A hand-drawn "wiggle" displacement on the edge sampling, so
+    //      outlines read as sketched rather than ruler-straight.
+    //   3. A luma-thresholded crosshatch shadow pattern (diagonal → vertical
+    //      → horizontal stripes as pixels get darker), gated by depth so it
+    //      only touches actual geometry, never the empty sky.
+    // ==============================================================
+
+    // ---- Depth buffer ----
+    const depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);
+    const depthRenderTarget = new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
+      depthTexture,
+      depthBuffer: true,
+    });
+
+    // ---- Normal buffer ----
+    // Every mesh gets its material swapped for one of these two during the
+    // normal pass, then swapped back — see renderNormalPass() below.
+    const normalRenderTarget = new THREE.WebGLRenderTarget(innerWidth, innerHeight);
+
+    // ---- Exclusion mask buffer ----
+    // White where the ship or planet/moon cluster is, black everywhere else
+    // (i.e. the terrain) — lets the final pass exclude those objects from
+    // specific effects (currently: Shadow threshold 3) that a flat
+    // post-process image has no other way to target selectively.
+    // See renderExcludeMaskPass() below.
+    const excludeMaskRenderTarget = new THREE.WebGLRenderTarget(innerWidth, innerHeight);
+    const excludeMaskMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Shared fragment-shader tail: white-out plain specular highlights (with
+    // their own outline, since they're baked in upstream of the Sobel pass
+    // rather than left to physically-based lighting) and pack diffuse light
+    // into alpha, so the main pass can use it to avoid over-shading lit areas.
+    const NORMAL_MATERIAL_FRAGMENT_TAIL = `
+      varying vec3 vNormal;
+      varying vec3 eyeVector;
+      uniform vec3 lightPosition;
+      const float shininess = 600.0;
+      const float diffuseness = 0.5;
+      vec2 phong() {
+        vec3 normal = normalize(vNormal);
+        vec3 lightDirection = normalize(lightPosition);
+        vec3 halfVector = normalize(eyeVector - lightDirection);
+        float NdotL = dot(normal, lightDirection);
+        float NdotH = dot(normal, halfVector);
+        float NdotH2 = NdotH * NdotH;
+        float kDiffuse = max(0.0, NdotL) * diffuseness;
+        float kSpecular = pow(NdotH2, shininess);
+        return vec2(kSpecular, kDiffuse);
+      }
+      void main() {
+        vec3 color = vec3(vNormal);
+        vec2 phongLighting = phong();
+        float specularLight = phongLighting.x;
+        float diffuseLight = phongLighting.y;
+        if (specularLight >= 0.25) {
+          color = vec3(1.0, 1.0, 1.0);
+        }
+        gl_FragColor = vec4(color, diffuseLight);
+      }
+    `;
+
+    // Standard normal material — used for every mesh except the ground
+    // (the ship, and the planet/moon cluster). Plain object-space normals,
+    // no displacement to account for.
+    const customNormalMaterial = new THREE.ShaderMaterial({
+      uniforms: { lightPosition: { value: sun.position } },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 eyeVector;
+        void main() {
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vec4 mvPosition = viewMatrix * worldPos;
+          gl_Position = projectionMatrix * mvPosition;
+          vec3 transformedNormal = normalMatrix * normal;
+          vNormal = normalize(transformedNormal);
+          eyeVector = normalize(worldPos.xyz - cameraPosition);
+        }
+      `,
+      fragmentShader: NORMAL_MATERIAL_FRAGMENT_TAIL,
+    });
+
+    // Ground-specific normal material — duplicates the exact same dune
+    // displacement math as the real ground material (via the shared
+    // TERRAIN_NOISE_GLSL). Without this, the normal buffer would see the
+    // ground as a flat undisplaced plane (since scene.overrideMaterial-style
+    // swapping loses whatever displacement was baked into the original
+    // material's onBeforeCompile), and the dunes would get no outlines at
+    // all — this is the exact pitfall the reference article calls out.
+    const groundNormalMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        lightPosition: { value: sun.position },
+        uTime: groundUniforms.uTime,
+        uNoiseScale: groundUniforms.uNoiseScale,
+        uNoiseHeight: groundUniforms.uNoiseHeight,
+        uScrollDirection: groundUniforms.uScrollDirection,
+      },
+      vertexShader: `
+        uniform float uTime;
+        uniform float uNoiseScale;
+        uniform float uNoiseHeight;
+        uniform vec2 uScrollDirection;
+        ${TERRAIN_NOISE_GLSL}
+
+        varying vec3 vNormal;
+        varying vec3 eyeVector;
+
+        void main() {
+          vec3 pos = position;
+          float eps = 0.5;
+          float hL = terrainHeight(pos.xy + vec2(-eps, 0.0));
+          float hR = terrainHeight(pos.xy + vec2(eps, 0.0));
+          float hD = terrainHeight(pos.xy + vec2(0.0, -eps));
+          float hU = terrainHeight(pos.xy + vec2(0.0, eps));
+          pos.z += terrainHeight(pos.xy);
+          vec3 tangent = normalize(vec3(2.0 * eps, 0.0, hR - hL));
+          vec3 bitangent = normalize(vec3(0.0, 2.0 * eps, hU - hD));
+          vec3 localNormal = normalize(cross(tangent, bitangent));
+
+          vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+          vec4 mvPosition = viewMatrix * worldPos;
+          gl_Position = projectionMatrix * mvPosition;
+          vec3 transformedNormal = normalMatrix * localNormal;
+          vNormal = normalize(transformedNormal);
+          eyeVector = normalize(worldPos.xyz - cameraPosition);
+        }
+      `,
+      fragmentShader: NORMAL_MATERIAL_FRAGMENT_TAIL,
+    });
+
+    // ---- The post-processing pass itself ----
+    class MoebiusPass extends Pass {
+      constructor({ depthTexture, normalTexture, excludeMaskTexture, camera }) {
+        super();
+        this.material = new THREE.ShaderMaterial({
+          uniforms: {
+            tDiffuse: { value: null },
+            tDepth: { value: depthTexture },
+            tNormal: { value: normalTexture },
+            tExcludeMask: { value: excludeMaskTexture },
+            cameraNear: { value: camera.near },
+            cameraFar: { value: camera.far },
+            resolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
+            uOutlineThickness: { value: 0.7 },
+            uWiggleFrequency: { value: 0.005 },
+            uWiggleAmplitude: { value: 2.7 },
+            uShadowThreshold1: { value: 0.0 },
+            uShadowThreshold2: { value: 0.0 },
+            uShadowThreshold3: { value: 1.0 },
+            uStripeSpacing: { value: 20.0 },
+            uOutlineThreshold: { value: 0.03 },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            #include <packing>
+            varying vec2 vUv;
+            uniform sampler2D tDiffuse;
+            uniform sampler2D tDepth;
+            uniform sampler2D tNormal;
+            uniform sampler2D tExcludeMask;
+            uniform float cameraNear;
+            uniform float cameraFar;
+            uniform vec2 resolution;
+            uniform float uOutlineThickness;
+            uniform float uWiggleFrequency;
+            uniform float uWiggleAmplitude;
+            uniform float uShadowThreshold1;
+            uniform float uShadowThreshold2;
+            uniform float uShadowThreshold3;
+            uniform float uStripeSpacing;
+            uniform float uOutlineThreshold;
+
+            const mat3 Sx = mat3(-1.0, -2.0, -1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 1.0);
+            const mat3 Sy = mat3(-1.0, 0.0, 1.0, -2.0, 0.0, 2.0, -1.0, 0.0, 1.0);
+
+            float readDepth(sampler2D depthSampler, vec2 coord) {
+              float fragCoordZ = texture2D(depthSampler, coord).x;
+              float viewZ = perspectiveDepthToViewZ(fragCoordZ, cameraNear, cameraFar);
+              return viewZToOrthographicDepth(viewZ, cameraNear, cameraFar);
+            }
+
+            float luma(vec3 color) {
+              const vec3 magic = vec3(0.2125, 0.7154, 0.0721);
+              return dot(magic, color);
+            }
+
+            // https://www.shadertoy.com/view/XlGcRh
+            float hash(vec2 p) {
+              vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+              p3 += dot(p3, p3.yzx + 33.33);
+              return fract((p3.x + p3.y) * p3.z);
+            }
+
+            void main() {
+              vec2 texel = vec2(1.0 / resolution.x, 1.0 / resolution.y);
+              vec4 outlineColor = vec4(0.0, 0.0, 0.0, 1.0);
+              vec4 pixelColor = texture2D(tDiffuse, vUv);
+
+              // Hand-drawn wobble — subtly displaces where we sample the depth
+              // and normal buffers, so the resulting edges wiggle like an
+              // inked line instead of a perfectly straight vector line.
+              vec2 displacement = vec2(
+                hash(gl_FragCoord.xy) * sin(gl_FragCoord.y * uWiggleFrequency),
+                hash(gl_FragCoord.xy) * cos(gl_FragCoord.x * uWiggleFrequency)
+              ) * uWiggleAmplitude / resolution.xy;
+
+              float depth00 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, 1.0));
+              float depth01 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, 0.0));
+              float depth02 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, -1.0));
+              float depth10 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(0.0, -1.0));
+              float depth11 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(0.0, 0.0));
+              float depth12 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(0.0, 1.0));
+              float depth20 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(1.0, -1.0));
+              float depth21 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(1.0, 0.0));
+              float depth22 = readDepth(tDepth, vUv + displacement + uOutlineThickness * texel * vec2(1.0, 1.0));
+
+              float xSobelDepth = Sx[0][0]*depth00 + Sx[1][0]*depth01 + Sx[2][0]*depth02 +
+                                  Sx[0][1]*depth10 + Sx[1][1]*depth11 + Sx[2][1]*depth12 +
+                                  Sx[0][2]*depth20 + Sx[1][2]*depth21 + Sx[2][2]*depth22;
+              float ySobelDepth = Sy[0][0]*depth00 + Sy[1][0]*depth01 + Sy[2][0]*depth02 +
+                                  Sy[0][1]*depth10 + Sy[1][1]*depth11 + Sy[2][1]*depth12 +
+                                  Sy[0][2]*depth20 + Sy[1][2]*depth21 + Sy[2][2]*depth22;
+              float gradientDepth = sqrt(xSobelDepth * xSobelDepth + ySobelDepth * ySobelDepth);
+
+              float normal00 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, 1.0)).rgb);
+              float normal01 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, 0.0)).rgb);
+              float normal02 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(-1.0, -1.0)).rgb);
+              float normal10 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(0.0, -1.0)).rgb);
+              float normal11 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(0.0, 0.0)).rgb);
+              float normal12 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(0.0, 1.0)).rgb);
+              float normal20 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(1.0, -1.0)).rgb);
+              float normal21 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(1.0, 0.0)).rgb);
+              float normal22 = luma(texture2D(tNormal, vUv + displacement + uOutlineThickness * texel * vec2(1.0, 1.0)).rgb);
+
+              float xSobelNormal = Sx[0][0]*normal00 + Sx[1][0]*normal01 + Sx[2][0]*normal02 +
+                                   Sx[0][1]*normal10 + Sx[1][1]*normal11 + Sx[2][1]*normal12 +
+                                   Sx[0][2]*normal20 + Sx[1][2]*normal21 + Sx[2][2]*normal22;
+              float ySobelNormal = Sy[0][0]*normal00 + Sy[1][0]*normal01 + Sy[2][0]*normal02 +
+                                   Sy[0][1]*normal10 + Sy[1][1]*normal11 + Sy[2][1]*normal12 +
+                                   Sy[0][2]*normal20 + Sy[1][2]*normal21 + Sy[2][2]*normal22;
+              float gradientNormal = sqrt(xSobelNormal * xSobelNormal + ySobelNormal * ySobelNormal);
+
+              // smoothstep cutoff — without this, any nonzero gradient (however
+              // tiny) mixes in some black, so noisy per-pixel normal variation
+              // (e.g. the dune terrain's displacement noise) quietly darkens
+              // huge areas that aren't actually edges at all.
+              float rawOutline = gradientDepth + gradientNormal;
+              float outline = smoothstep(uOutlineThreshold, uOutlineThreshold + 0.15, clamp(rawOutline, 0.0, 1.0));
+
+              // Crosshatch shadow pattern — luma-thresholded stripes, gated by
+              // depth <= 0.99 so the empty sky (which clears to the far plane,
+              // depth ~1.0) never gets shaded, only real geometry does.
+              float depth = readDepth(tDepth, vUv);
+              vec4 normalSample = texture2D(tNormal, vUv);
+              float diffuseLight = normalSample.a;
+              float pixelLuma = luma(pixelColor.rgb + diffuseLight * 0.65);
+              bool isExcluded = texture2D(tExcludeMask, vUv).r > 0.5;
+
+              if (pixelLuma <= uShadowThreshold1 && depth <= 0.99) {
+                if (mod((vUv.y + displacement.y) * resolution.y, uStripeSpacing) < 1.0) { pixelColor = outlineColor; }
+              }
+              if (pixelLuma <= uShadowThreshold2 && depth <= 0.99) {
+                if (mod((vUv.x + displacement.x) * resolution.x, uStripeSpacing) < 1.0) { pixelColor = outlineColor; }
+              }
+              if (pixelLuma <= uShadowThreshold3 && depth <= 0.99 && !isExcluded) {
+                if (mod((vUv.x + displacement.x) * resolution.y + (vUv.y + displacement.y) * resolution.x, uStripeSpacing) <= 1.0) { pixelColor = outlineColor; }
+              }
+
+              gl_FragColor = mix(pixelColor, outlineColor, outline);
+            }
+          `,
+        });
+        this.fsQuad = new FullScreenQuad(this.material);
+      }
+
+      dispose() {
+        this.material.dispose();
+        this.fsQuad.dispose();
+      }
+
+      render(renderer, writeBuffer, readBuffer) {
+        this.material.uniforms.tDiffuse.value = readBuffer.texture;
+        if (this.renderToScreen) {
+          renderer.setRenderTarget(null);
+          this.fsQuad.render(renderer);
+        } else {
+          renderer.setRenderTarget(writeBuffer);
+          if (this.clear) renderer.clear();
+          this.fsQuad.render(renderer);
+        }
+      }
+    }
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const moebiusPass = new MoebiusPass({
+      depthTexture,
+      normalTexture: normalRenderTarget.texture,
+      excludeMaskTexture: excludeMaskRenderTarget.texture,
+      camera,
+    });
+    moebiusPass.renderToScreen = true;
+    composer.addPass(moebiusPass);
+
+    // ------------------------------------------------------------------
+    // Ground — a MeshStandardMaterial with the vertex shader patched via
+    // onBeforeCompile to displace along noise (dunes) and recompute normals
+    // from finite differences so lighting/shadows follow the displaced
+    // surface rather than lighting a flat plane. uTime scrolls the noise
+    // sample coordinate so the dune field appears to flow toward the camera
+    // — the ship and camera themselves stay put (the "80% fake motion" trick
+    // from the reference article, done so the scene can loop forever without
+    // an enormous terrain mesh).
+    // ------------------------------------------------------------------
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xc9945c, roughness: 1, metalness: 0 });
+    groundMaterial.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = groundUniforms.uTime;
+      shader.uniforms.uNoiseScale = groundUniforms.uNoiseScale;
+      shader.uniforms.uNoiseHeight = groundUniforms.uNoiseHeight;
+      shader.uniforms.uScrollDirection = groundUniforms.uScrollDirection;
+
+      shader.vertexShader = `
+        uniform float uTime;
+        uniform float uNoiseScale;
+        uniform float uNoiseHeight;
+        uniform vec2 uScrollDirection;
+        ${TERRAIN_NOISE_GLSL}
+      ` + shader.vertexShader;
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        `#include <beginnormal_vertex>
+        {
+          float eps = 0.5;
+          float hL = terrainHeight(position.xy + vec2(-eps, 0.0));
+          float hR = terrainHeight(position.xy + vec2(eps, 0.0));
+          float hD = terrainHeight(position.xy + vec2(0.0, -eps));
+          float hU = terrainHeight(position.xy + vec2(0.0, eps));
+          vec3 tangent = normalize(vec3(2.0 * eps, 0.0, hR - hL));
+          vec3 bitangent = normalize(vec3(0.0, 2.0 * eps, hU - hD));
+          objectNormal = normalize(cross(tangent, bitangent));
+        }`,
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        transformed.z += terrainHeight(position.xy);`,
+      );
+    };
+
+    const groundGeometry = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    ground.castShadow = false; // it's the floor — nothing beneath it to shadow
+    scene.add(ground);
+
+    // ------------------------------------------------------------------
+    // Spaceship — "Spaceship" by JCarvajal (https://sketchfab.com/JCarvajal),
+    // https://sketchfab.com/3d-models/spaceship-00c7005a1ae74487874a9f518cc25d24
+    // Licensed CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/) —
+    // credit required wherever this scene is shared. See model/license.txt.
+    //
+    // `ship` is added to the scene immediately (empty) so the render loop can
+    // reference its position/rotation from frame 1; the loaded model is
+    // parented into it once GLTFLoader finishes, after being re-centered and
+    // scaled to a consistent size (raw model scale/pivot varies per asset).
+    // ------------------------------------------------------------------
+    const SHIP_TARGET_SIZE = 3; // longest dimension, in world units, after auto-scaling
+    const SHIP_HOVER_HEIGHT = 2.5;
+    const SHIP_BOB_AMOUNT = 0.15;
+    const SHIP_BOB_SPEED = 1.1;
+
+    const ship = new THREE.Group();
+    ship.position.set(0, SHIP_HOVER_HEIGHT, -3);
+    scene.add(ship);
+
+    // Kept separate from `ship` (which the hover/bob animation drives every
+    // frame in render()) so the rotation sliders below can control the model's
+    // own orientation without fighting that per-frame animation.
+    let shipModel = null;
+
+    new GLTFLoader().load('model/scene.gltf', (gltf) => {
+      const model = gltf.scene;
+
+      const box = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+
+      const scale = SHIP_TARGET_SIZE / Math.max(size.x, size.y, size.z);
+      model.scale.setScalar(scale);
+      model.position.sub(center.multiplyScalar(scale));
+
+      model.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+
+      ship.add(model);
+      shipModel = model;
+      shipModel.rotation.y = THREE.MathUtils.degToRad(145); // last-tuned facing direction
+    });
+
+    // ------------------------------------------------------------------
+    // Planet/moon cluster on the horizon — one bigger primary, two smaller
+    // moons orbiting it. Standing in for the reference scene's distant
+    // planets. `fog: false` on every material here is deliberate and
+    // important: without it, these materials fade toward FOG_COLOR at this
+    // distance (well inside FOG_FAR) and become nearly indistinguishable
+    // from the sky — exactly what was happening before this was added.
+    // ------------------------------------------------------------------
+    const PRIMARY_RADIUS = 5;
+    const MOON_RADIUS = 1.8;
+    const PLANET_SPIN_SPEED = 0.05;
+
+    // Fixed starting positions — the moons no longer orbit the primary (see
+    // render() below), they just sit here and spin in place. These came from
+    // a hand-composed arrangement via the drag controls + "copy positions" button.
+    const PRIMARY_POSITION = new THREE.Vector3(-20.152003586558237, 11.845089818175246, -68.48567954436211);
+    const MOON0_POSITION = new THREE.Vector3(-2.2649331404949438, 22.71637926543984, -79.08612060658893);
+    const MOON1_POSITION = new THREE.Vector3(-33.92675266136565, 4.787160173000488, -56.95751903862161);
+
+    // Builds one video-textured body with both a sphere and cube geometry
+    // pre-made (toggled live below, no rebuild needed).
+    function makeVideoBody(src, radius) {
+      const video = document.createElement('video');
+      video.src = src;
+      video.muted = true;
+      video.loop = false; // clips are now longer than the intended capture length
+      video.playsInline = true;
+      video.play();
+
+      const texture = new THREE.VideoTexture(video);
+      const material = new THREE.MeshBasicMaterial({ map: texture, fog: false });
+      const sphereGeometry = new THREE.SphereGeometry(radius, 48, 32);
+      const cubeGeometry = new THREE.BoxGeometry(radius * 2, radius * 2, radius * 2);
+      const mesh = new THREE.Mesh(sphereGeometry, material);
+      scene.add(mesh);
+
+      return { mesh, video, sphereGeometry, cubeGeometry, baseScale: 1 };
+    }
+
+    const primaryPlanet = makeVideoBody(CLIPS[0], PRIMARY_RADIUS);
+    primaryPlanet.mesh.position.copy(PRIMARY_POSITION);
+
+    const moons = [CLIPS[1], CLIPS[2]].map((src) => makeVideoBody(src, MOON_RADIUS));
+    moons[0].mesh.position.copy(MOON0_POSITION);
+    moons[1].mesh.position.copy(MOON1_POSITION);
+
+    // Click-and-drag to reposition — drags on a plane through the object's
+    // current position, facing the camera. Disables camera orbiting while
+    // actively dragging so the two controls don't fight each other.
+    const clusterBodies = [primaryPlanet, ...moons];
+    const dragControls = new DragControls(clusterBodies.map((b) => b.mesh), camera, renderer.domElement);
+    dragControls.addEventListener('dragstart', () => { controls.enabled = false; });
+    dragControls.addEventListener('dragend', () => { controls.enabled = true; });
+
+    // Ship rotation and cluster shape/scale are no longer exposed as UI
+    // sliders — their last-tuned values are baked in as fixed defaults
+    // instead of being cleared. Dune noise (frequency/height) got its
+    // sliders back below, alongside the post-processing controls.
+    primaryPlanet.mesh.scale.setScalar(2.45);
+    moons[0].mesh.scale.setScalar(2.65);
+    moons[1].mesh.scale.setScalar(2.35);
+    // Cluster shape stays at sphere (each mesh's default geometry already).
+    // Ship model rotation (145° on Y) is applied once the GLTF finishes
+    // loading — see the `ship.add(model)` callback above.
+
+    // ---- Post-processing parameter controls ----
+    function wireUniformSlider(inputId, valueId, uniforms, uniformName, format = (v) => v) {
+      const input = document.getElementById(inputId);
+      const valueEl = document.getElementById(valueId);
+      function update() {
+        const value = Number(input.value);
+        uniforms[uniformName].value = value;
+        valueEl.textContent = format(value);
+      }
+      input.addEventListener('input', update);
+      update();
+    }
+
+    const moebiusUniforms = moebiusPass.material.uniforms;
+    wireUniformSlider('outline-thickness', 'outline-thickness-value', moebiusUniforms, 'uOutlineThickness', (v) => v.toFixed(1));
+    wireUniformSlider('wiggle-frequency', 'wiggle-frequency-value', moebiusUniforms, 'uWiggleFrequency', (v) => v.toFixed(3));
+    wireUniformSlider('wiggle-amplitude', 'wiggle-amplitude-value', moebiusUniforms, 'uWiggleAmplitude', (v) => v.toFixed(1));
+    wireUniformSlider('outline-threshold', 'outline-threshold-value', moebiusUniforms, 'uOutlineThreshold', (v) => v.toFixed(2));
+    wireUniformSlider('shadow-threshold-1', 'shadow-threshold-1-value', moebiusUniforms, 'uShadowThreshold1', (v) => v.toFixed(2));
+    wireUniformSlider('shadow-threshold-2', 'shadow-threshold-2-value', moebiusUniforms, 'uShadowThreshold2', (v) => v.toFixed(2));
+    wireUniformSlider('shadow-threshold-3', 'shadow-threshold-3-value', moebiusUniforms, 'uShadowThreshold3', (v) => v.toFixed(2));
+    wireUniformSlider('stripe-spacing', 'stripe-spacing-value', moebiusUniforms, 'uStripeSpacing', (v) => v.toFixed(0));
+    wireUniformSlider('noise-scale', 'noise-scale-value', groundUniforms, 'uNoiseScale', (v) => v.toFixed(3));
+    wireUniformSlider('noise-height', 'noise-height-value', groundUniforms, 'uNoiseHeight', (v) => v.toFixed(1));
+
+    const toast = document.getElementById('saved-toast');
+    let toastTimeout;
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function getCameraView() {
+      return {
+        position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
+      };
+    }
+
+    // Right-click the canvas to save the current camera state (position + orbit
+    // target) instead of opening the browser context menu. Saved views persist
+    // in localStorage and are logged to the console as JSON.
+    const STORAGE_KEY = 'moebius-camera-views';
+    renderer.domElement.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      const view = { ...getCameraView(), savedAt: new Date().toISOString() };
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      saved.push(view);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      console.log(`Saved camera view #${saved.length}`, view);
+      console.log('All saved views:', saved);
+      showToast(`Saved view #${saved.length} — see console for JSON`);
+    });
+
+
+    const moebiusToggle = document.getElementById('moebius-toggle');
+
+    function renderDepthPass() {
+      renderer.setRenderTarget(depthRenderTarget);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+    }
+
+    // Traverses the whole scene swapping every mesh's material for one of
+    // the two normal materials (ground gets the displacement-aware one,
+    // everything else gets the generic one), renders, then swaps the real
+    // materials back. Order of the two traversals must match (nothing else
+    // may change the scene graph between them) for the material stack to
+    // line back up correctly — same approach the reference article uses.
+    function renderNormalPass() {
+      const originalMaterials = [];
+      scene.traverse((obj) => {
+        if (obj.isMesh) {
+          originalMaterials.push(obj.material);
+          obj.material = obj === ground ? groundNormalMaterial : customNormalMaterial;
+        }
+      });
+
+      renderer.setRenderTarget(normalRenderTarget);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+
+      scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.material = originalMaterials.shift();
+        }
+      });
+    }
+
+    // Only touches the ship + planet/moon cluster (not the whole scene,
+    // i.e. not the terrain) — renders them flat white against a
+    // cleared-black target, giving the final pass a way to identify "is
+    // this pixel excluded from threshold-3 shading" that a plain color
+    // image has no other way to express. Each object is rendered with a
+    // separate renderer.render() call (autoClear off after the first clear,
+    // so they accumulate onto the same target rather than erasing each other).
+    function renderExcludeMaskPass() {
+      const originalMaterials = [];
+      const excludedObjects = [ship, ...clusterBodies.map((b) => b.mesh)];
+      for (const obj of excludedObjects) {
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            originalMaterials.push(child.material);
+            child.material = excludeMaskMaterial;
+          }
+        });
+      }
+
+      renderer.setRenderTarget(excludeMaskRenderTarget);
+      renderer.clear();
+      renderer.autoClear = false;
+      for (const obj of excludedObjects) {
+        renderer.render(obj, camera);
+      }
+      renderer.autoClear = true;
+      renderer.setRenderTarget(null);
+
+      for (const obj of excludedObjects) {
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            child.material = originalMaterials.shift();
+          }
+        });
+      }
+    }
+
+    // Reused each frame in render() below to avoid allocating a new Vector3
+    // every call just to read the ship's current facing direction.
+    const shipForwardScratch = new THREE.Vector3();
+
+    // Pure function of t (seconds) — no accumulated/internal state, so this
+    // scene can eventually be driven by an offline frame-by-frame capture
+    // pass instead of only requestAnimationFrame's real-time clock.
+    function render(t) {
+      groundUniforms.uTime.value = t;
+
+      if (shipModel) {
+        // getWorldDirection() gives the ship's true current facing in world
+        // space (its local -Z axis, fully accounting for ship + shipModel's
+        // combined rotation) — the dunes should flow toward the tail, i.e.
+        // the opposite of that, so it's negated.
+        shipModel.getWorldDirection(shipForwardScratch);
+        // World X maps straight onto the ground's local X; world Z maps onto
+        // local -Y (from how `ground.rotation.x = -Math.PI/2` transforms the
+        // plane — see the terrainHeight()/uScrollDirection comments above).
+        // Flipped from the first attempt — that read as scrolling toward the
+        // nose instead of away from it, so the sign was backwards somewhere
+        // in the world→local conversion. This is the empirically-correct one.
+        groundUniforms.uScrollDirection.value
+          .set(shipForwardScratch.x, -shipForwardScratch.z)
+          .normalize();
+      }
+
+      ship.position.y = SHIP_HOVER_HEIGHT + Math.sin(t * SHIP_BOB_SPEED) * SHIP_BOB_AMOUNT;
+      ship.rotation.z = Math.sin(t * SHIP_BOB_SPEED * 0.7) * 0.03;
+      ship.rotation.x = Math.sin(t * SHIP_BOB_SPEED * 0.5 + 1.0) * 0.02;
+
+      // Fixed in place (see PRIMARY_POSITION/MOON0_POSITION/MOON1_POSITION
+      // above) — only self-rotation now, no more orbiting around each other.
+      primaryPlanet.mesh.rotation.y = t * PLANET_SPIN_SPEED;
+      for (const moon of moons) {
+        moon.mesh.rotation.y = t * PLANET_SPIN_SPEED * 1.5;
+      }
+
+      // Compute the shadow map once per frame (autoUpdate is off — see
+      // above — since the Moebius branch otherwise re-renders 3x/frame).
+      renderer.shadowMap.needsUpdate = true;
+
+      if (moebiusToggle.checked) {
+        renderDepthPass();
+        renderer.shadowMap.needsUpdate = false; // already computed by the depth pass above
+        renderNormalPass();
+        renderExcludeMaskPass();
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
+    }
+
+    let start = performance.now(); // let, not const — reset to 0 by the recorder below
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      render((performance.now() - start) / 1000);
+    }
+    animate();
+
+    // Records exactly 10 real-time seconds of the canvas via MediaRecorder
+    // (not a deterministic offline capture — the video textures play on
+    // real wall-clock time internally, so recording in real-time is what
+    // keeps everything in sync without needing to seek-and-wait on video
+    // frames for a decoupled virtual clock). Resets the animation clock and
+    // replays all three planet clips from 0 first, so every take starts
+    // from the same state rather than a random mid-animation moment.
+    const RECORD_DURATION_MS = 10000;
+    const recordButton = document.getElementById('record-clip');
+    recordButton.addEventListener('click', () => {
+      recordButton.disabled = true;
+      recordButton.textContent = 'Recording…';
+
+      start = performance.now();
+      for (const body of clusterBodies) {
+        body.video.currentTime = 0;
+        body.video.play();
+      }
+
+      const stream = renderer.domElement.captureStream(30);
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 12_000_000 });
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `moebius-spaceship-${Date.now()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        recordButton.disabled = false;
+        recordButton.textContent = 'Record 10s clip';
+        showToast('Clip saved — check your downloads');
+      };
+
+      recorder.start();
+      showToast('Recording 10s…');
+      setTimeout(() => recorder.stop(), RECORD_DURATION_MS);
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      composer.setSize(innerWidth, innerHeight);
+      depthRenderTarget.setSize(innerWidth, innerHeight);
+      normalRenderTarget.setSize(innerWidth, innerHeight);
+      excludeMaskRenderTarget.setSize(innerWidth, innerHeight);
+      moebiusPass.material.uniforms.resolution.value.set(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>
